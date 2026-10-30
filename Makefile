@@ -8,6 +8,6 @@ LIBS = -lpspgum -lpspgu -lpspdebug -lpspdisplay -lpspge -lpspctrl -lpspkernel -l
 BUILD_PRX = 1
 EXTRA_TARGETS = EBOOT.PBP
 PSP_EBOOT_TITLE = The Cat Is Locked - Beta 0.1.0
-PSP_EBOOT_ICON = assets/pictures/ICON0.PNG
+# No custom ICON0.PNG yet: don't pass a missing file to pack-pbp.
 PSPSDK=$(shell psp-config --pspsdk-path)
 include $(PSPSDK)/lib/build.mak
