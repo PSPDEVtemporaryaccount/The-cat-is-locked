@@ -1,0 +1,22 @@
+name: Build The Cat Is Locked PSP
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: pspdev/pspdev:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build PSP EBOOT
+        run: make clean && make
+      - name: Upload EBOOT.PBP
+        uses: actions/upload-artifact@v4
+        with:
+          name: The-Cat-Is-Locked-Beta-0.1.0
+          path: EBOOT.PBP
+          if-no-files-found: error
+          retention-days: 30
