@@ -1,21 +1,27 @@
-# The Cat Is Locked — PSP Beta 0.1.0
+# The Cat Is Locked — PSP Beta 0.1.1
 
-Premier prototype pour PSP / PPSSPP.
+Deuxième étape du prototype PSP / PPSSPP, avec un menu principal graphique.
 
 ## Commandes
-- Flèches directionnelles : naviguer dans les menus et déplacer le chat.
-- Croix : valider / chercher la clé dans le prototype.
-- Rond : revenir en arrière ou ouvrir le menu depuis le niveau.
-- Dans Paramètres : gauche/droite pour modifier l'option sélectionnée.
+- Flèches directionnelles : naviguer dans les menus et déplacer le personnage.
+- Croix : valider.
+- Rond : revenir en arrière ou quitter le niveau vers l'accueil.
+- Dans Paramètres : gauche/droite pour activer ou désactiver les sons.
 
 ## Menus
 - Menu principal : Jouer, Paramètres, Quitter.
 - Jouer : Reprise, Commencer l'aventure.
-- Paramètres : Vibreur, Sons, volume, réinitialisation des sauvegardes.
+- Paramètres : Vibreur (indisponible sur cette version), Sons, réinitialiser les sauvegardes.
 
-## Version 0.1.0
-Cette version pose les fondations : scène 3D de pièce, chat 3D provisoire, navigation des menus et première boucle jouable. La progression est encore temporaire et ne survit pas à la fermeture du jeu.
+## Changements de la Beta 0.1.1
+- Ajout d'un panneau de menu graphique avec boutons et surbrillance de la sélection.
+- Séparation visuelle de l'accueil, des sous-menus et du niveau.
+- Suppression du réglage de volume qui n'était pas réellement relié à un système audio.
+- Nettoyage de la navigation des menus.
 
-Les images de référence se trouvent dans `assets/Pictures/`. Le fichier `Cam.jpeg` y est rangé, dans un dossier `Pictures` séparé à l'intérieur de `assets`.
+## Limites connues
+Le personnage visible dans cette version reste un modèle 3D provisoire et anguleux : ce n'est pas encore le chat réaliste souhaité. La sauvegarde est temporaire et disparaît à la fermeture du jeu. Les sons ne sont pas encore intégrés ; le réglage Sons prépare seulement l'option.
+
+Les images de référence sont dans `assets/Pictures/`, notamment `Cam.jpeg`.
 
 La compilation est lancée automatiquement par GitHub Actions à chaque push sur `main`.
