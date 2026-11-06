@@ -26,6 +26,8 @@ static int soundOn = 1;
 static float catX = 0.0f, catZ = 0.0f;
 static int keyFound = 0;
 static int keysCollected = 0;
+static int keyPicked[2] = {0,0};
+static void *renderBuffer = (void*)0;
 static int health = 100;
 static int trapTriggered[4] = {0,0,0,0};
 static const float keyPos[2][2] = {{-2.5f,-2.2f},{2.5f,-2.2f}};
@@ -66,8 +68,6 @@ static void drawRect(float x1,float y1,float x2,float y2,unsigned int color) {
 
 static void begin3D(void) {
     sceGuStart(GU_DIRECT,displayList);
-    sceGuDrawBuffer(GU_PSM_8888,(void*)0,BUF_WIDTH);
-    sceGuDispBuffer(SCR_WIDTH,SCR_HEIGHT,(void*)0x88000,BUF_WIDTH);
     sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
     sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
     sceGuDepthRange(65535,0);
@@ -93,32 +93,43 @@ static void begin3D(void) {
 
 static void drawRoom(void) {
     drawCube(0,-.35f,0,10,.35f,10,0xffeeeeee);
-    drawCube(0,1.7f,-5,10,4,.25f,0xffa64f30);
+    drawCube(-2.9f,1.7f,-5,4.2f,4,.25f,0xffa64f30);
+    drawCube(2.9f,1.7f,-5,4.2f,4,.25f,0xffa64f30);
+    drawCube(0,3.0f,-5,1.6f,1.4f,.25f,0xffa64f30);
     drawCube(-5,1.7f,0,.25f,4,10,0xffbd633d);
     drawCube(5,1.7f,0,.25f,4,10,0xffbd633d);
     drawCube(0,3.7f,0,10,.2f,10,0xffd98a55);
-    drawCube(0,1.05f,-4.82f,1.5f,2.2f,.08f,0xff493023);
+    drawCube(-.82f,1.05f,-4.82f,.12f,2.2f,.12f,0xff493023);
+    drawCube(.82f,1.05f,-4.82f,.12f,2.2f,.12f,0xff493023);
+    drawCube(0,2.15f,-4.82f,1.75f,.12f,.12f,0xff493023);
+    drawCube(0,1.05f,-4.88f,1.55f,2.05f,.08f,0xff805233);
     drawCube(.48f,1.05f,-4.72f,.10f,.16f,.08f,0xffffd36a);
     drawCube(-2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
     drawCube(2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
     /* Objets de gameplay visibles : clés dorées et plaques de pièges rouges. */
     drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
     drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
-    drawCube(trapPos[0][0],.025f,trapPos[0][1],.75f,.05f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
-    drawCube(trapPos[1][0],.025f,trapPos[1][1],.75f,.05f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
-    drawCube(trapPos[2][0],.025f,trapPos[2][1],.75f,.05f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
-    drawCube(trapPos[3][0],.025f,trapPos[3][1],.75f,.05f,.75f,trapTriggered[3]?0xff555555:0xffc83232);
+    drawCube(trapPos[0][0],-.14f,trapPos[0][1],.75f,.07f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
+    drawCube(trapPos[1][0],-.14f,trapPos[1][1],.75f,.07f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
+    drawCube(trapPos[2][0],-.14f,trapPos[2][1],.75f,.07f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
+    drawCube(trapPos[3][0],-.14f,trapPos[3][1],.75f,.07f,.75f,trapTriggered[3]?0xff555555:0xffc83232);
 }
 
 static void drawCat(void) {
-    /* Modèle provisoire : la silhouette sera remplacée par un vrai modèle de chat. */
-    drawCube(catX,.25f,catZ,.85f,.55f,.48f,0xff38312d);
-    drawCube(catX,.63f,catZ-.34f,.48f,.43f,.43f,0xff4b423c);
-    drawCube(catX-.15f,.95f,catZ-.47f,.13f,.27f,.12f,0xff4b423c);
-    drawCube(catX+.15f,.95f,catZ-.47f,.13f,.27f,.12f,0xff4b423c);
-    drawCube(catX-.23f,.12f,catZ-.12f,.14f,.38f,.14f,0xff272321);
-    drawCube(catX+.23f,.12f,catZ-.12f,.14f,.38f,.14f,0xff272321);
-    drawCube(catX,.32f,catZ+.48f,.12f,.12f,.55f,0xff38312d);
+    /* Silhouette feline moins "lama" : corps allonge, tete, oreilles, quatre pattes et queue. */
+    drawCube(catX,.43f,catZ,.72f,.42f,1.15f,0xff5a514b);
+    drawCube(catX,.72f,catZ-.62f,.52f,.48f,.50f,0xff5a514b);
+    drawCube(catX-.19f,1.02f,catZ-.80f,.13f,.30f,.13f,0xff302b28);
+    drawCube(catX+.19f,1.02f,catZ-.80f,.13f,.30f,.13f,0xff302b28);
+    drawCube(catX-.14f,.78f,catZ-.87f,.06f,.06f,.04f,0xffffd36a);
+    drawCube(catX+.14f,.78f,catZ-.87f,.06f,.06f,.04f,0xffffd36a);
+    drawCube(catX,.63f,catZ-.91f,.07f,.05f,.05f,0xffc98791);
+    drawCube(catX-.24f,.18f,catZ-.40f,.14f,.32f,.16f,0xff302b28);
+    drawCube(catX+.24f,.18f,catZ-.40f,.14f,.32f,.16f,0xff302b28);
+    drawCube(catX-.24f,.18f,catZ+.40f,.14f,.32f,.16f,0xff302b28);
+    drawCube(catX+.24f,.18f,catZ+.40f,.14f,.32f,.16f,0xff302b28);
+    drawCube(catX,.50f,catZ+.70f,.10f,.10f,.45f,0xff5a514b);
+    drawCube(catX,.58f,catZ+1.02f,.09f,.09f,.22f,0xff5a514b);
 }
 
 static void drawMenuPanel(void) {
@@ -178,8 +189,11 @@ static void drawFrame(void) {
     if(menu!=4) drawMenuPanel();
     sceGuFinish();
     sceGuSync(0,0);
+    /* Dessiner les libellés dans le buffer GU courant, juste avant le swap. */
+    pspDebugScreenSetOffset((int)renderBuffer);
+    printMenu();
     sceDisplayWaitVblankStart();
-    sceGuSwapBuffers();
+    renderBuffer=sceGuSwapBuffers();
 }
 
 static void printMenu(void) {
@@ -221,6 +235,11 @@ int main(void) {
     pspDebugScreenInit();
     sceGuInit();
     sceGuStart(GU_DIRECT,displayList);
+    sceGuDrawBuffer(GU_PSM_8888,(void*)0,BUF_WIDTH);
+    sceGuDispBuffer(SCR_WIDTH,SCR_HEIGHT,(void*)0x88000,BUF_WIDTH);
+    sceGuDepthBuffer((void*)0x110000,BUF_WIDTH);
+    sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
+    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
     sceGuFinish(); sceGuSync(0,0);
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
@@ -234,15 +253,15 @@ int main(void) {
         old=b;
 
         if(menu==4) {
-            if(b & PSP_CTRL_LEFT) catX-=.055f;
-            if(b & PSP_CTRL_RIGHT) catX+=.055f;
-            if(b & PSP_CTRL_UP) catZ-=.055f;
-            if(b & PSP_CTRL_DOWN) catZ+=.055f;
+            if((b & PSP_CTRL_LEFT) || pad.Lx<78) catX-=.045f;
+            if((b & PSP_CTRL_RIGHT) || pad.Lx>177) catX+=.045f;
+            if((b & PSP_CTRL_UP) || pad.Ly<78) catZ-=.045f;
+            if((b & PSP_CTRL_DOWN) || pad.Ly>177) catZ+=.045f;
             {
                 int i;
                 for(i=0;i<2;i++) {
                     float dx=catX-keyPos[i][0], dz=catZ-keyPos[i][1];
-                    if((dx*dx+dz*dz)<0.36f && keysCollected<i+1) keysCollected=i+1;
+                    if((dx*dx+dz*dz)<0.36f && !keyPicked[i]) { keyPicked[i]=1; keysCollected++; }
                 }
                 for(i=0;i<4;i++) {
                     float dx=catX-trapPos[i][0], dz=catZ-trapPos[i][1];
@@ -281,19 +300,17 @@ int main(void) {
                     else sceKernelExitGame();
                 } else if(menu==1) {
                     if(selected==0) { if(hasSave) menu=4; }
-                    else { catX=0; catZ=0; keyFound=0; keysCollected=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; hasSave=1; menu=4; }
+                    else { catX=0; catZ=0; keyFound=0; keysCollected=0; keyPicked[0]=0; keyPicked[1]=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; hasSave=1; menu=4; }
                 } else if(menu==2) {
                     if(selected==2) { menu=3; selected=0; }
                 } else if(menu==3) {
-                    if(selected==1) { hasSave=0; keyFound=0; keysCollected=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; catX=0; catZ=0; }
+                    if(selected==1) { hasSave=0; keyFound=0; keysCollected=0; keyPicked[0]=0; keyPicked[1]=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; catX=0; catZ=0; }
                     menu=2; selected=0;
                 }
             }
         }
 
         drawFrame();
-        printMenu();
-        sceDisplayWaitVblankStart();
     }
     sceKernelExitGame();
     return 0;
