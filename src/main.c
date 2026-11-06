@@ -101,6 +101,13 @@ static void drawRoom(void) {
     drawCube(.48f,1.05f,-4.72f,.10f,.16f,.08f,0xffffd36a);
     drawCube(-2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
     drawCube(2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
+    /* Objets de gameplay visibles : clés dorées et plaques de pièges rouges. */
+    drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
+    drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
+    drawCube(trapPos[0][0],.025f,trapPos[0][1],.75f,.05f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
+    drawCube(trapPos[1][0],.025f,trapPos[1][1],.75f,.05f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
+    drawCube(trapPos[2][0],.025f,trapPos[2][1],.75f,.05f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
+    drawCube(trapPos[3][0],.025f,trapPos[3][1],.75f,.05f,.75f,trapTriggered[3]?0xff555555:0xffc83232);
 }
 
 static void drawCat(void) {
