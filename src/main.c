@@ -177,6 +177,8 @@ static void drawGameHud(void) {
     sceGuEnable(GU_DEPTH_TEST);
 }
 
+static void printMenu(void);
+
 static void drawFrame(void) {
     begin3D();
     drawRoom();
