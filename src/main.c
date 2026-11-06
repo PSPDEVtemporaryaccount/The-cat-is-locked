@@ -25,6 +25,11 @@ static int hasSave = 0;
 static int soundOn = 1;
 static float catX = 0.0f, catZ = 0.0f;
 static int keyFound = 0;
+static int keysCollected = 0;
+static int health = 100;
+static int trapTriggered[4] = {0,0,0,0};
+static const float keyPos[2][2] = {{-2.5f,-2.2f},{2.5f,-2.2f}};
+static const float trapPos[4][2] = {{-2.0f,0.6f},{-0.7f,1.6f},{0.8f,0.6f},{2.0f,1.6f}};
 
 static Vertex3D cube[36] = {
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,-.5f,-.5f},{0xffffffff,.5f,.5f,-.5f},
@@ -72,7 +77,7 @@ static void begin3D(void) {
     sceGuDepthFunc(GU_GEQUAL);
     sceGuFrontFace(GU_CW);
     sceGuShadeModel(GU_SMOOTH);
-    sceGuClearColor(0xffb87942);
+    sceGuClearColor(0xff000000);
     sceGuClearDepth(0);
     sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
     sceGumMatrixMode(GU_PROJECTION);
@@ -96,6 +101,13 @@ static void drawRoom(void) {
     drawCube(.48f,1.05f,-4.72f,.10f,.16f,.08f,0xffffd36a);
     drawCube(-2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
     drawCube(2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
+    /* Objets de gameplay visibles : clés dorées et plaques de pièges rouges. */
+    drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
+    drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
+    drawCube(trapPos[0][0],.025f,trapPos[0][1],.75f,.05f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
+    drawCube(trapPos[1][0],.025f,trapPos[1][1],.75f,.05f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
+    drawCube(trapPos[2][0],.025f,trapPos[2][1],.75f,.05f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
+    drawCube(trapPos[3][0],.025f,trapPos[3][1],.75f,.05f,.75f,trapTriggered[3]?0xff555555:0xffc83232);
 }
 
 static void drawCat(void) {
@@ -140,10 +152,24 @@ static void drawMenuPanel(void) {
     sceGuEnable(GU_DEPTH_TEST);
 }
 
+static void drawGameHud(void) {
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
+    sceGumMatrixMode(GU_VIEW); sceGumLoadIdentity();
+    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+    drawRect(12,12,178,28,0xd9000000);
+    drawRect(18,17,172,23,0xff333333);
+    if(health>0) drawRect(18,17,18+(154.0f*(float)health/100.0f),23,health>50?0xff39c85a:(health>25?0xffffb52e:0xffe83d3d));
+    drawRect(12,34,70,48,0xd9000000);
+    drawRect(20,37,36,45,keysCollected>0?0xffffd34e:0xff555555);
+    drawRect(42,37,58,45,keysCollected>1?0xffffd34e:0xff555555);
+    sceGuEnable(GU_DEPTH_TEST);
+}
+
 static void drawFrame(void) {
     begin3D();
     drawRoom();
-    if(menu==4) drawCat();
+    if(menu==4) { drawCat(); drawGameHud(); }
     else {
         /* Silhouette d'ambiance provisoire dans le décor du menu. */
         drawCube(0,.22f,1.4f,.75f,.45f,.55f,0xff38312d);
@@ -184,7 +210,8 @@ static void printMenu(void) {
     } else {
         pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("NIVEAU 1 - LA PREMIERE PIECE");
         pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches : bouger   Croix : chercher   Rond : menu");
-        pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("Cle : %s",keyFound?"trouvee":"a trouver");
+        pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("CLES : %d/2  |  PORTE : %s",keysCollected,keyFound?"OUVERTE":"VERROUILLEE");
+        pspDebugScreenSetXY(1,4); pspDebugScreenPrintf("VIE : %d%%",health);
     }
 }
 
@@ -207,15 +234,30 @@ int main(void) {
         old=b;
 
         if(menu==4) {
-            if(press & PSP_CTRL_LEFT) catX-=.15f;
-            if(press & PSP_CTRL_RIGHT) catX+=.15f;
-            if(press & PSP_CTRL_UP) catZ-=.15f;
-            if(press & PSP_CTRL_DOWN) catZ+=.15f;
-            if(press & PSP_CTRL_CROSS) keyFound=1;
+            if(b & PSP_CTRL_LEFT) catX-=.055f;
+            if(b & PSP_CTRL_RIGHT) catX+=.055f;
+            if(b & PSP_CTRL_UP) catZ-=.055f;
+            if(b & PSP_CTRL_DOWN) catZ+=.055f;
+            {
+                int i;
+                for(i=0;i<2;i++) {
+                    float dx=catX-keyPos[i][0], dz=catZ-keyPos[i][1];
+                    if((dx*dx+dz*dz)<0.36f && keysCollected<i+1) keysCollected=i+1;
+                }
+                for(i=0;i<4;i++) {
+                    float dx=catX-trapPos[i][0], dz=catZ-trapPos[i][1];
+                    if(!trapTriggered[i] && (dx*dx+dz*dz)<0.30f) {
+                        trapTriggered[i]=1;
+                        health-=25;
+                        if(health<0) health=0;
+                    }
+                }
+                keyFound=(keysCollected>=2);
+            }
             if(press & PSP_CTRL_CIRCLE) { menu=0; selected=0; }
             if(catX < -4.0f) catX=-4.0f;
             if(catX > 4.0f) catX=4.0f;
-            if(catZ < -3.5f) catZ=-3.5f;
+            if(catZ < -4.2f) catZ=-4.2f;
             if(catZ > 3.5f) catZ=3.5f;
         } else {
             int max=(menu==0)?2:((menu==1)?1:((menu==2)?2:1));
@@ -239,11 +281,11 @@ int main(void) {
                     else sceKernelExitGame();
                 } else if(menu==1) {
                     if(selected==0) { if(hasSave) menu=4; }
-                    else { catX=0; catZ=0; keyFound=0; hasSave=1; menu=4; }
+                    else { catX=0; catZ=0; keyFound=0; keysCollected=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; hasSave=1; menu=4; }
                 } else if(menu==2) {
                     if(selected==2) { menu=3; selected=0; }
                 } else if(menu==3) {
-                    if(selected==1) { hasSave=0; keyFound=0; catX=0; catZ=0; }
+                    if(selected==1) { hasSave=0; keyFound=0; keysCollected=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; catX=0; catZ=0; }
                     menu=2; selected=0;
                 }
             }
