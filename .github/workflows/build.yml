@@ -2,6 +2,8 @@ name: Build The Cat Is Locked PSP
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 jobs:
   build:
@@ -11,12 +13,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare menu textures
+        run: python3 tools/prepare_assets.py
       - name: Build PSP EBOOT
         run: make clean && make
       - name: Upload EBOOT.PBP
         uses: actions/upload-artifact@v4
         with:
-          name: The-Cat-Is-Locked-Beta-0.1.3
+          name: The-Cat-Is-Locked-Beta-0.1.4
           path: EBOOT.PBP
           if-no-files-found: error
           retention-days: 30

@@ -2,8 +2,10 @@
 #include <pspdisplay.h>
 #include <pspdebug.h>
 #include <pspctrl.h>
+#include <pspiofilemgr.h>
 #include <pspgu.h>
 #include <pspgum.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -14,22 +16,57 @@ PSP_HEAP_SIZE_KB(2048);
 #define BUF_WIDTH 512
 #define SCR_WIDTH 480
 #define SCR_HEIGHT 272
+#define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK0001"
+#define SAVE_PATH SAVE_DIR "/DATA.BIN"
+#define SAVE_MAGIC 0x54434C4B
+#define SAVE_VERSION 1
+#define SAVE_SLOTS 5
 
 typedef struct { unsigned int color; float x, y, z; } Vertex3D;
 typedef struct { unsigned int color; float x, y, z; } Vertex2D;
+typedef struct { float u, v; unsigned int color; float x, y, z; } VertexTex2D;
+
+typedef struct {
+    int valid;
+    int level;
+    int world;
+    float catX;
+    float catZ;
+    int health;
+    int keysCollected;
+    int keyPicked[2];
+    int trapTriggered[4];
+} SaveSlot;
+
+typedef struct {
+    unsigned int magic;
+    unsigned int version;
+    SaveSlot slots[SAVE_SLOTS];
+} SaveFile;
+
+extern unsigned char menu_main_texture[];
+extern unsigned char menu_play_resume_texture[];
+extern unsigned char menu_play_new_texture[];
+extern unsigned char menu_settings_texture[];
+extern unsigned char menu_resume_texture[];
 
 static unsigned int __attribute__((aligned(16))) displayList[262144];
-static int menu = 0; /* 0 accueil, 1 jouer, 2 paramètres, 3 confirmation, 4 jeu */
+static int menu = 0; /* 0 accueil, 1 jouer, 2 paramètres, 3 confirmation, 4 jeu, 5 reprise */
 static int selected = 0;
-static int hasSave = 0;
 static int soundOn = 1;
+static int volume = 70;
 static float catX = 0.0f, catZ = 0.0f;
 static int keyFound = 0;
 static int keysCollected = 0;
 static int keyPicked[2] = {0,0};
-static void *renderBuffer = (void*)0;
 static int health = 100;
 static int trapTriggered[4] = {0,0,0,0};
+static int currentSlot = -1;
+static SaveSlot saveSlots[SAVE_SLOTS];
+static int messageCode = 0;
+static int messageFrames = 0;
+static void *renderBuffer = (void*)0;
+
 static const float keyPos[2][2] = {{-2.5f,-2.2f},{2.5f,-2.2f}};
 static const float trapPos[4][2] = {{-2.0f,0.6f},{-0.7f,1.6f},{0.8f,0.6f},{2.0f,1.6f}};
 
@@ -66,29 +103,47 @@ static void drawRect(float x1,float y1,float x2,float y2,unsigned int color) {
     sceGuDrawArray(GU_SPRITES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
 }
 
-static void begin3D(void) {
-    sceGuStart(GU_DIRECT,displayList);
-    sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
-    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
-    sceGuDepthRange(65535,0);
-    sceGuScissor(0,0,SCR_WIDTH,SCR_HEIGHT);
-    sceGuEnable(GU_SCISSOR_TEST);
-    sceGuEnable(GU_DEPTH_TEST);
-    sceGuDepthFunc(GU_GEQUAL);
-    sceGuFrontFace(GU_CW);
-    sceGuShadeModel(GU_SMOOTH);
-    sceGuClearColor(0xff000000);
-    sceGuClearDepth(0);
-    sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
-    sceGumMatrixMode(GU_PROJECTION);
-    sceGumLoadIdentity();
-    sceGumPerspective(48.0f,16.0f/9.0f,0.5f,100.0f);
-    sceGumMatrixMode(GU_VIEW);
-    sceGumLoadIdentity();
-    ScePspFVector3 eye={0.0f,5.5f,10.0f}, target={0.0f,0.5f,0.0f}, up={0.0f,1.0f,0.0f};
-    sceGumLookAt(&eye,&target,&up);
-    sceGumMatrixMode(GU_MODEL);
-    sceGumLoadIdentity();
+static void drawTriangle(float x1,float y1,float x2,float y2,float x3,float y3,unsigned int color) {
+    Vertex2D v[3];
+    v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
+    v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
+    v[2].color=color; v[2].x=x3; v[2].y=y3; v[2].z=0.0f;
+    sceGuDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,3,0,v);
+}
+
+static void drawArrowRight(float x,float y) {
+    unsigned int gold=0xffffd34e;
+    drawRect(x,y+7,x+19,y+11,gold);
+    drawTriangle(x+17,y,x+30,y+9,x+17,y+18,gold);
+}
+
+static void drawArrowLeft(float x,float y) {
+    unsigned int gold=0xffffd34e;
+    drawRect(x+11,y+7,x+30,y+11,gold);
+    drawTriangle(x+13,y,x,y+9,x+13,y+18,gold);
+}
+
+static void begin2D(void) {
+    sceGuDisable(GU_DEPTH_TEST);
+    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
+    sceGumMatrixMode(GU_VIEW); sceGumLoadIdentity();
+    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+}
+
+static void drawTexture(const unsigned char *pixels,int textureHeight,int imageHeight,float y) {
+    VertexTex2D v[2];
+    v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
+    v[0].x=0.0f; v[0].y=y; v[0].z=0.0f;
+    v[1].u=480.0f; v[1].v=(float)imageHeight; v[1].color=0xffffffff;
+    v[1].x=480.0f; v[1].y=y+(float)imageHeight; v[1].z=0.0f;
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuTexMode(GU_PSM_8888,0,0,0);
+    sceGuTexImage(0,512,textureHeight,512,pixels);
+    sceGuTexFunc(GU_TFX_REPLACE,GU_TCC_RGBA);
+    sceGuTexFilter(GU_LINEAR,GU_LINEAR);
+    sceGuTexWrap(GU_CLAMP,GU_CLAMP);
+    sceGuDrawArray(GU_SPRITES,GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
+    sceGuDisable(GU_TEXTURE_2D);
 }
 
 static void drawRoom(void) {
@@ -106,9 +161,8 @@ static void drawRoom(void) {
     drawCube(.48f,1.05f,-4.72f,.10f,.16f,.08f,0xffffd36a);
     drawCube(-2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
     drawCube(2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
-    /* Objets de gameplay visibles : clés dorées et plaques de pièges rouges. */
-    drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
-    drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
+    if(!keyPicked[0]) drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
+    if(!keyPicked[1]) drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
     drawCube(trapPos[0][0],-.14f,trapPos[0][1],.75f,.07f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
     drawCube(trapPos[1][0],-.14f,trapPos[1][1],.75f,.07f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
     drawCube(trapPos[2][0],-.14f,trapPos[2][1],.75f,.07f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
@@ -116,7 +170,6 @@ static void drawRoom(void) {
 }
 
 static void drawCat(void) {
-    /* Silhouette feline moins "lama" : corps allonge, tete, oreilles, quatre pattes et queue. */
     drawCube(catX,.43f,catZ,.72f,.42f,1.15f,0xff5a514b);
     drawCube(catX,.72f,catZ-.62f,.52f,.48f,.50f,0xff5a514b);
     drawCube(catX-.19f,1.02f,catZ-.80f,.13f,.30f,.13f,0xff302b28);
@@ -132,103 +185,203 @@ static void drawCat(void) {
     drawCube(catX,.58f,catZ+1.02f,.09f,.09f,.22f,0xff5a514b);
 }
 
-static void drawMenuPanel(void) {
-    /* Passage en 2D pour dessiner une vraie interface par-dessus la pièce. */
-    sceGuDisable(GU_DEPTH_TEST);
-    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
-    sceGumMatrixMode(GU_VIEW); sceGumLoadIdentity();
-    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
-
-    drawRect(82,24,398,250,0xe91b2430);
-    drawRect(88,30,392,244,0xff29394a);
-    drawRect(96,38,384,88,0xffb85d35);
-    drawRect(96,94,384,238,0xff182431);
-
-    if(menu==0) {
-        int i;
-        for(i=0;i<3;i++) {
-            unsigned int c=(selected==i)?0xffd88a45:0xff344b60;
-            drawRect(132,111+i*39,348,142+i*39,c);
-            if(selected==i) drawRect(132,111+i*39,139,142+i*39,0xffffd36a);
-        }
-    } else {
-        int count=(menu==1)?2:(menu==2?3:2);
-        int i;
-        for(i=0;i<count;i++) {
-            unsigned int c=(selected==i)?0xffd88a45:0xff344b60;
-            drawRect(116,112+i*39,364,143+i*39,c);
-            if(selected==i) drawRect(116,112+i*39,123,143+i*39,0xffffd36a);
-        }
-    }
-    sceGuEnable(GU_DEPTH_TEST);
-}
-
 static void drawGameHud(void) {
-    sceGuDisable(GU_DEPTH_TEST);
-    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
-    sceGumMatrixMode(GU_VIEW); sceGumLoadIdentity();
-    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
+    begin2D();
     drawRect(12,12,178,28,0xd9000000);
     drawRect(18,17,172,23,0xff333333);
     if(health>0) drawRect(18,17,18+(154.0f*(float)health/100.0f),23,health>50?0xff39c85a:(health>25?0xffffb52e:0xffe83d3d));
     drawRect(12,34,70,48,0xd9000000);
     drawRect(20,37,36,45,keysCollected>0?0xffffd34e:0xff555555);
     drawRect(42,37,58,45,keysCollected>1?0xffffd34e:0xff555555);
-    sceGuEnable(GU_DEPTH_TEST);
 }
 
-static void printMenu(void);
-
-static void drawFrame(void) {
-    begin3D();
-    drawRoom();
-    if(menu==4) { drawCat(); drawGameHud(); }
-    else {
-        /* Silhouette d'ambiance provisoire dans le décor du menu. */
-        drawCube(0,.22f,1.4f,.75f,.45f,.55f,0xff38312d);
-        drawCube(0,.58f,1.0f,.42f,.38f,.38f,0xff4b423c);
-    }
-    if(menu!=4) drawMenuPanel();
-    sceGuFinish();
-    sceGuSync(0,0);
-    /* Dessiner les libellés dans le buffer GU courant, juste avant le swap. */
-    pspDebugScreenSetOffset((int)renderBuffer);
-    printMenu();
-    sceDisplayWaitVblankStart();
-    renderBuffer=sceGuSwapBuffers();
-}
-
-static void printMenu(void) {
-    pspDebugScreenSetXY(13,5);
-    pspDebugScreenSetTextColor(0xffffffff);
-    pspDebugScreenPrintf("THE CAT IS LOCKED");
-    pspDebugScreenSetXY(17,7);
-    pspDebugScreenPrintf("BETA 0.1.1");
-
+static void drawMenuScreen(void) {
+    begin2D();
     if(menu==0) {
-        pspDebugScreenSetXY(20,14); pspDebugScreenPrintf("%s JOUER",selected==0?">":" ");
-        pspDebugScreenSetXY(20,19); pspDebugScreenPrintf("%s PARAMETRES",selected==1?">":" ");
-        pspDebugScreenSetXY(20,24); pspDebugScreenPrintf("%s QUITTER",selected==2?">":" ");
-        pspDebugScreenSetXY(12,31); pspDebugScreenPrintf("CROIX : VALIDER     HAUT/BAS : CHOISIR");
+        drawTexture(menu_main_texture,256,256,8.0f);
+        if(selected==0) { drawArrowRight(20,151); drawArrowLeft(180,151); }
+        else if(selected==1) { drawArrowRight(20,190); drawArrowLeft(180,190); }
+        else { drawArrowRight(20,229); drawArrowLeft(180,229); }
     } else if(menu==1) {
-        pspDebugScreenSetXY(20,14); pspDebugScreenPrintf("%s REPRISE",selected==0?">":" ");
-        pspDebugScreenSetXY(20,19); pspDebugScreenPrintf("%s COMMENCER L'AVENTURE",selected==1?">":" ");
-        pspDebugScreenSetXY(16,31); pspDebugScreenPrintf("CROIX : VALIDER       ROND : RETOUR");
+        if(selected==0) drawTexture(menu_play_resume_texture,512,272,0.0f);
+        else drawTexture(menu_play_new_texture,512,272,0.0f);
     } else if(menu==2) {
-        pspDebugScreenSetXY(17,14); pspDebugScreenPrintf("%s VIBREUR : INDISPONIBLE",selected==0?">":" ");
-        pspDebugScreenSetXY(17,19); pspDebugScreenPrintf("%s SONS : %s",selected==1?">":" ",soundOn?"ON":"OFF");
-        pspDebugScreenSetXY(17,24); pspDebugScreenPrintf("%s REINITIALISER LES SAUVEGARDES",selected==2?">":" ");
-        pspDebugScreenSetXY(16,31); pspDebugScreenPrintf("GAUCHE/DROITE : MODIFIER   ROND : RETOUR");
+        drawTexture(menu_settings_texture,512,272,0.0f);
+        if(selected==0) { drawArrowRight(239,76); drawArrowLeft(431,76); }
+        else if(selected==1) { drawArrowRight(239,132); drawArrowLeft(431,132); }
+        else { drawArrowRight(239,181); drawArrowLeft(431,181); }
+        drawRect(291,141,454,145,0xff777777);
+        if(volume>0) drawRect(291,141,291+(163.0f*(float)volume/100.0f),145,0xffffd34e);
+        drawRect(415,83,454,103,soundOn?0xff3c8c38:0xff555555);
+        drawRect(soundOn?438:418,86,soundOn?450:430,100,0xffd8d8d8);
     } else if(menu==3) {
-        pspDebugScreenSetXY(15,14); pspDebugScreenPrintf("EFFACER TOUTE LA PROGRESSION ?");
-        pspDebugScreenSetXY(19,19); pspDebugScreenPrintf("%s NON",selected==0?">":" ");
-        pspDebugScreenSetXY(19,24); pspDebugScreenPrintf("%s OUI, TOUT EFFACER",selected==1?">":" ");
-    } else {
+        drawTexture(menu_settings_texture,512,272,0.0f);
+        drawRect(52,65,428,210,0xff242a30);
+        drawRect(58,71,422,204,0xff4b5158);
+        drawRect(112,127,368,155,selected==0?0xff9a6637:0xff354352);
+        drawRect(112,165,368,193,selected==1?0xff9a6637:0xff354352);
+        if(selected==0) { drawArrowRight(80,132); drawArrowLeft(370,132); }
+        else { drawArrowRight(80,170); drawArrowLeft(370,170); }
+    } else if(menu==5) {
+        int i;
+        drawTexture(menu_resume_texture,512,272,0.0f);
+        for(i=0;i<SAVE_SLOTS;i++) {
+            float y=25.0f+(float)i*40.0f;
+            if(selected==i) { drawArrowRight(245,y); drawArrowLeft(420,y); }
+        }
+    }
+}
+
+static void makeSaveDirectory(void) {
+    sceIoMkdir("ms0:/PSP",0777);
+    sceIoMkdir("ms0:/PSP/SAVEDATA",0777);
+    sceIoMkdir(SAVE_DIR,0777);
+}
+
+static void loadAllSaves(void) {
+    SaveFile file;
+    SceUID fd;
+    memset(saveSlots,0,sizeof(saveSlots));
+    fd=sceIoOpen(SAVE_PATH,PSP_O_RDONLY,0777);
+    if(fd<0) return;
+    memset(&file,0,sizeof(file));
+    if(sceIoRead(fd,&file,sizeof(file))==(int)sizeof(file) &&
+       file.magic==SAVE_MAGIC && file.version==SAVE_VERSION) {
+        memcpy(saveSlots,file.slots,sizeof(saveSlots));
+    }
+    sceIoClose(fd);
+}
+
+static void saveAllSaves(void) {
+    SaveFile file;
+    SceUID fd;
+    makeSaveDirectory();
+    memset(&file,0,sizeof(file));
+    file.magic=SAVE_MAGIC;
+    file.version=SAVE_VERSION;
+    memcpy(file.slots,saveSlots,sizeof(saveSlots));
+    fd=sceIoOpen(SAVE_PATH,PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC,0777);
+    if(fd<0) return;
+    sceIoWrite(fd,&file,sizeof(file));
+    sceIoClose(fd);
+}
+
+static int findEmptySlot(void) {
+    int i;
+    for(i=0;i<SAVE_SLOTS;i++) if(!saveSlots[i].valid) return i;
+    return -1;
+}
+
+static void resetGameState(void) {
+    int i;
+    catX=0.0f; catZ=0.0f;
+    keyFound=0; keysCollected=0; health=100;
+    keyPicked[0]=0; keyPicked[1]=0;
+    for(i=0;i<4;i++) trapTriggered[i]=0;
+}
+
+static void storeCurrentSlot(void) {
+    SaveSlot *slot;
+    if(currentSlot<0 || currentSlot>=SAVE_SLOTS) return;
+    slot=&saveSlots[currentSlot];
+    slot->valid=1;
+    slot->level=1;
+    slot->world=1;
+    slot->catX=catX;
+    slot->catZ=catZ;
+    slot->health=health;
+    slot->keysCollected=keysCollected;
+    slot->keyPicked[0]=keyPicked[0];
+    slot->keyPicked[1]=keyPicked[1];
+    memcpy(slot->trapTriggered,trapTriggered,sizeof(trapTriggered));
+    saveAllSaves();
+}
+
+static void startNewGame(void) {
+    int slot=findEmptySlot();
+    if(slot<0) {
+        messageCode=1;
+        messageFrames=180;
+        return;
+    }
+    resetGameState();
+    currentSlot=slot;
+    storeCurrentSlot();
+    menu=4;
+}
+
+static void loadSaveSlot(int slotIndex) {
+    SaveSlot *slot;
+    if(slotIndex<0 || slotIndex>=SAVE_SLOTS || !saveSlots[slotIndex].valid) {
+        messageCode=2;
+        messageFrames=150;
+        return;
+    }
+    slot=&saveSlots[slotIndex];
+    currentSlot=slotIndex;
+    catX=slot->catX; catZ=slot->catZ;
+    health=slot->health; keysCollected=slot->keysCollected;
+    keyPicked[0]=slot->keyPicked[0]; keyPicked[1]=slot->keyPicked[1];
+    memcpy(trapTriggered,slot->trapTriggered,sizeof(trapTriggered));
+    keyFound=(keysCollected>=2);
+    menu=4;
+}
+
+static void resetAllSaves(void) {
+    memset(saveSlots,0,sizeof(saveSlots));
+    currentSlot=-1;
+    sceIoRemove(SAVE_PATH);
+}
+
+static void printMenuText(void) {
+    int i;
+    pspDebugScreenSetTextColor(0xffffffff);
+    if(menu==3) {
+        pspDebugScreenSetXY(10,10);
+        pspDebugScreenPrintf("REINITIALISER TOUTES LES SAUVEGARDES ?");
+        pspDebugScreenSetXY(21,17);
+        pspDebugScreenPrintf("%s NON",selected==0?">":" ");
+        pspDebugScreenSetXY(21,22);
+        pspDebugScreenPrintf("%s OUI, TOUT EFFACER",selected==1?">":" ");
+    } else if(menu==5) {
+        for(i=0;i<SAVE_SLOTS;i++) {
+            pspDebugScreenSetXY(29,4+i*5);
+            if(saveSlots[i].valid)
+                pspDebugScreenPrintf("Niveau %d, Monde %d",saveSlots[i].level,saveSlots[i].world);
+            else
+                pspDebugScreenPrintf("Emplacement vide");
+        }
+    } else if(menu==4) {
         pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("NIVEAU 1 - LA PREMIERE PIECE");
-        pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches : bouger   Croix : chercher   Rond : menu");
+        pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches/stick : bouger   Rond : sauvegarder/menu");
         pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("CLES : %d/2  |  PORTE : %s",keysCollected,keyFound?"OUVERTE":"VERROUILLEE");
         pspDebugScreenSetXY(1,4); pspDebugScreenPrintf("VIE : %d%%",health);
     }
+    if(messageFrames>0) {
+        pspDebugScreenSetTextColor(0xffffff00);
+        pspDebugScreenSetXY(8,30);
+        if(messageCode==1) pspDebugScreenPrintf("5 SAUVEGARDES MAXIMUM : REINITIALISEZ POUR RECOMMENCER");
+        else if(messageCode==2) pspDebugScreenPrintf("CET EMPLACEMENT EST VIDE");
+    }
+}
+
+static void drawFrame(void) {
+    begin3D();
+    if(menu==4) {
+        drawRoom();
+        drawCat();
+        drawGameHud();
+    } else {
+        drawMenuScreen();
+    }
+    sceGuFinish();
+    sceGuSync(0,0);
+    if(menu==3 || menu==4 || menu==5 || messageFrames>0) {
+        pspDebugScreenSetOffset((int)renderBuffer);
+        printMenuText();
+    }
+    sceDisplayWaitVblankStart();
+    renderBuffer=sceGuSwapBuffers();
 }
 
 int main(void) {
@@ -245,9 +398,11 @@ int main(void) {
     sceGuFinish(); sceGuSync(0,0);
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
+    loadAllSaves();
 
     while(1) {
         SceCtrlData pad;
+        int changed=0;
         sceCtrlReadBufferPositive(&pad,1);
         unsigned int b=pad.Buttons;
         static unsigned int old=0;
@@ -263,7 +418,9 @@ int main(void) {
                 int i;
                 for(i=0;i<2;i++) {
                     float dx=catX-keyPos[i][0], dz=catZ-keyPos[i][1];
-                    if((dx*dx+dz*dz)<0.36f && !keyPicked[i]) { keyPicked[i]=1; keysCollected++; }
+                    if((dx*dx+dz*dz)<0.36f && !keyPicked[i]) {
+                        keyPicked[i]=1; keysCollected++; changed=1;
+                    }
                 }
                 for(i=0;i<4;i++) {
                     float dx=catX-trapPos[i][0], dz=catZ-trapPos[i][1];
@@ -271,27 +428,34 @@ int main(void) {
                         trapTriggered[i]=1;
                         health-=25;
                         if(health<0) health=0;
+                        changed=1;
                     }
                 }
                 keyFound=(keysCollected>=2);
             }
-            if(press & PSP_CTRL_CIRCLE) { menu=0; selected=0; }
+            if(changed) storeCurrentSlot();
+            if(press & PSP_CTRL_CIRCLE) {
+                storeCurrentSlot();
+                menu=0; selected=0;
+            }
             if(catX < -4.0f) catX=-4.0f;
             if(catX > 4.0f) catX=4.0f;
             if(catZ < -4.2f) catZ=-4.2f;
             if(catZ > 3.5f) catZ=3.5f;
         } else {
-            int max=(menu==0)?2:((menu==1)?1:((menu==2)?2:1));
+            int max=(menu==0)?2:((menu==1 || menu==3)?1:((menu==2)?2:4));
             if(press & PSP_CTRL_UP) selected--;
             if(press & PSP_CTRL_DOWN) selected++;
             if(selected<0) selected=max;
             if(selected>max) selected=0;
 
-            if(menu==2 && (press & (PSP_CTRL_LEFT|PSP_CTRL_RIGHT)) && selected==1)
+            if(menu==2 && selected==0 && (press & (PSP_CTRL_LEFT|PSP_CTRL_RIGHT|PSP_CTRL_CROSS)))
                 soundOn=!soundOn;
+            if(menu==2 && selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; }
+            if(menu==2 && selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; }
 
             if(press & PSP_CTRL_CIRCLE) {
-                if(menu==0) { /* déjà à l'accueil */ }
+                if(menu==0) { }
                 else if(menu==3) { menu=2; selected=0; }
                 else { menu=0; selected=0; }
             }
@@ -301,17 +465,19 @@ int main(void) {
                     else if(selected==1) { menu=2; selected=0; }
                     else sceKernelExitGame();
                 } else if(menu==1) {
-                    if(selected==0) { if(hasSave) menu=4; }
-                    else { catX=0; catZ=0; keyFound=0; keysCollected=0; keyPicked[0]=0; keyPicked[1]=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; hasSave=1; menu=4; }
+                    if(selected==0) { menu=5; selected=0; }
+                    else { startNewGame(); }
                 } else if(menu==2) {
                     if(selected==2) { menu=3; selected=0; }
                 } else if(menu==3) {
-                    if(selected==1) { hasSave=0; keyFound=0; keysCollected=0; keyPicked[0]=0; keyPicked[1]=0; health=100; for(int i=0;i<4;i++) trapTriggered[i]=0; catX=0; catZ=0; }
+                    if(selected==1) resetAllSaves();
                     menu=2; selected=0;
+                } else if(menu==5) {
+                    loadSaveSlot(selected);
                 }
             }
         }
-
+        if(messageFrames>0) messageFrames--;
         drawFrame();
     }
     sceKernelExitGame();

@@ -1,10 +1,27 @@
-# The Cat Is Locked — PSP Beta 0.1.3
+# The Cat Is Locked — PSP Beta 0.1.4
 
-Correctifs : lecture du stick analogique, buffers GU configurés une seule fois pour réduire le clignotement, textes du menu superposés au framebuffer rendu avant l'échange, ouverture du mur arrière avec encadrement de porte et silhouette de chat moins cubique.
+## Refonte des menus
+
+- Le menu principal utilise désormais `assets/Pictures/Menu_principal_asset.png`.
+- **Jouer** ouvre le menu JOUER.
+- Dans le menu JOUER, **Reprise de la partie** ouvre les cinq emplacements de sauvegarde.
+- Dans le menu JOUER, **Commencer l'aventure** démarre directement le gameplay, sans menu intermédiaire.
+- **Paramètres** ouvre le menu correspondant : sons, volume et réinitialisation.
+- La réinitialisation ouvre une confirmation : **Non** revient aux paramètres sans rien effacer ; **Oui** efface les cinq sauvegardes.
+- Les sauvegardes sont stockées dans `ms0:/PSP/SAVEDATA/TCLCK0001/DATA.BIN`. Une nouvelle aventure utilise le prochain emplacement libre ; cinq sauvegardes maximum sont autorisées.
+- Les images PNG sont décodées et converties en textures RGBA8888 par `tools/prepare_assets.py` pendant la compilation. Le script n'a besoin que de Python standard.
 
 ## Commandes
-- Croix directionnelle et stick analogique gauche : déplacement continu.
-- Croix : valider les menus.
-- Rond : retour menu.
 
-Le prototype comporte deux clés, quatre pièges (25 % de vie par piège), une barre de vie et quelques objets de décor. Le chat reste une silhouette primitive sans modèle 3D texturé, et les sauvegardes/sons ne sont pas intégrés.
+- Croix directionnelle et stick analogique gauche : déplacement du chat.
+- Croix : valider une option.
+- Haut/Bas : naviguer.
+- Gauche/Droite : modifier les sons ou le volume dans les paramètres.
+- Rond pendant le jeu : sauvegarder puis revenir au menu principal.
+- Rond dans les menus : retour.
+
+## État du prototype
+
+Le gameplay reste un prototype : pièce 3D simple, chat en géométrie primitive, deux clés et quatre pièges. Les sauvegardes conservent la position, la vie, les clés et les pièges déclenchés. La progression de niveau et les effets sonores ne sont pas encore implémentés.
+
+La compilation GitHub Actions valide la construction de l'EBOOT ; une vérification visuelle dans PPSSPP/JSPSP reste nécessaire pour confirmer le rendu sur émulateur.
