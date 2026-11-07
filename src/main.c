@@ -20,22 +20,23 @@ PSP_HEAP_SIZE_KB(2048);
 #define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK070"
 #define SAVE_PATH SAVE_DIR "/SAVE.DAT"
 #define SAVE_MAGIC 0x54434C37
-#define SAVE_VERSION 1
+#define SAVE_VERSION 2
 #define SAVE_COUNT 5
 #define WORLD_COUNT 6
 #define LEVELS_PER_WORLD 10
 
 typedef struct { unsigned int color; float x,y,z; } Vertex3D;
 typedef struct { float u,v; unsigned int color; float x,y,z; } VertexTex2D;
-typedef struct { int valid, world, level, lives, difficulty; } SaveSlot;
+typedef struct { int valid, world, level, lives, difficulty, hasKey; float catX, catZ, keyX, keyZ; } SaveSlot;
 typedef struct { unsigned int magic, version; SaveSlot slots[SAVE_COUNT]; } SaveFile;
 
 extern unsigned char tex_main_default[];
 extern unsigned char tex_main_play[];
 extern unsigned char tex_main_settings[];
 extern unsigned char tex_main_quit[];
+extern unsigned char tex_play_menu[];
 extern unsigned char tex_play_resume[];
-extern unsigned char tex_play_new[];
+extern unsigned char tex_start_adventure[];
 extern unsigned char tex_settings[];
 extern unsigned char tex_saves[];
 
@@ -219,6 +220,9 @@ static void saveProgress(void) {
     saves[currentSlot].level=level;
     saves[currentSlot].lives=lives;
     saves[currentSlot].difficulty=difficulty;
+    saves[currentSlot].hasKey=hasKey;
+    saves[currentSlot].catX=catX; saves[currentSlot].catZ=catZ;
+    saves[currentSlot].keyX=keyX; saves[currentSlot].keyZ=keyZ;
     writeSaves();
 }
 
@@ -252,10 +256,9 @@ static void loadSave(int index) {
     level=saves[index].level;
     lives=saves[index].lives;
     difficulty=saves[index].difficulty;
-    hasKey=0;
-    resetPosition();
-    keyX=(float)((level%3)-1)*1.65f;
-    keyZ=-1.25f;
+    hasKey=saves[index].hasKey;
+    catX=saves[index].catX; catZ=saves[index].catZ;
+    keyX=saves[index].keyX; keyZ=saves[index].keyZ;
     screen=4;
 }
 
@@ -333,6 +336,7 @@ static void updateGameplay(const SceCtrlData *pad,unsigned int press) {
     }
     if(!hasKey && fabsf(catX-keyX)<0.52f && fabsf(catZ-keyZ)<0.52f) {
         hasKey=1;
+        saveProgress();
         strncpy(notice,"Cle trouvee ! Va vers la porte.",sizeof(notice)-1);
         noticeFrames=150;
     }
@@ -346,11 +350,13 @@ static void drawMenu(void) {
         const unsigned char *t=selected==0?tex_main_play:(selected==1?tex_main_settings:tex_main_quit);
         drawTexture(t);
     } else if(screen==1) {
-        drawTexture(selected==0?tex_play_resume:tex_play_new);
+        drawTexture(tex_play_menu);
     } else if(screen==2) {
         drawTexture(tex_settings);
     } else if(screen==3) {
-        drawTexture(tex_saves);
+        drawTexture(tex_play_resume);
+    } else if(screen==6) {
+        drawTexture(tex_start_adventure);
     } else {
         drawTexture(tex_main_default);
     }
