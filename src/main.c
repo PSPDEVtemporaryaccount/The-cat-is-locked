@@ -424,7 +424,7 @@ static void drawFrame(void) {
     }
     sceGuFinish();
     sceGuSync(0,0);
-    if(menu==3 || menu==4 || menu==5 || messageFrames>0) {
+    if(menu==3 || menu==4 || menu==5 || menu==6 || menu==7 || messageFrames>0) {
         pspDebugScreenSetOffset((int)renderBuffer);
         printMenuText();
     }
