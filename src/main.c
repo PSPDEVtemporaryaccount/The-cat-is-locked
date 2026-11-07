@@ -198,9 +198,14 @@ static void makeSaveDir(void) {
 
 static void writeSaves(void);
 
+static void writeSaves(void);
+static void loadSettings(void);
+static void writeSettings(void);
+
 static void loadSaves(void) {
     struct { unsigned int magic, version; } header;
     SaveFile f;
+    SaveFileV2 old2;
     SaveFileV1 old;
     SceUID fd;
     int i;
@@ -217,6 +222,19 @@ static void loadSaves(void) {
         memset(&f,0,sizeof(f));
         if(sceIoRead(fd,&f,sizeof(f))==(int)sizeof(f))
             memcpy(saves,f.slots,sizeof(saves));
+    } else if(header.version==2) {
+        sceIoLseek(fd,0,PSP_SEEK_SET);
+        memset(&old2,0,sizeof(old2));
+        if(sceIoRead(fd,&old2,sizeof(old2))==(int)sizeof(old2) && old2.magic==SAVE_MAGIC) {
+            for(i=0;i<SAVE_COUNT;i++) {
+                saves[i].valid=old2.slots[i].valid; saves[i].world=old2.slots[i].world;
+                saves[i].level=old2.slots[i].level; saves[i].lives=old2.slots[i].lives;
+                saves[i].difficulty=old2.slots[i].difficulty; saves[i].hasKey=old2.slots[i].hasKey;
+                saves[i].catX=old2.slots[i].catX; saves[i].catZ=old2.slots[i].catZ;
+                saves[i].keyX=old2.slots[i].keyX; saves[i].keyZ=old2.slots[i].keyZ;
+                saves[i].health=100; strncpy(saves[i].pseudo,"Chat",sizeof(saves[i].pseudo)-1);
+            }
+        }
     } else if(header.version==1) {
         sceIoLseek(fd,0,PSP_SEEK_SET);
         memset(&old,0,sizeof(old));
@@ -231,11 +249,12 @@ static void loadSaves(void) {
                 saves[i].catX=0.0f; saves[i].catZ=2.65f;
                 saves[i].keyX=(float)((saves[i].level%3)-1)*1.65f;
                 saves[i].keyZ=-1.25f;
+                saves[i].health=100; strncpy(saves[i].pseudo,"Chat",sizeof(saves[i].pseudo)-1);
             }
         }
     }
     sceIoClose(fd);
-    if(header.version==1) writeSaves();
+    if(header.version==1 || header.version==2) writeSaves();
 }
 
 static void writeSaves(void) {
