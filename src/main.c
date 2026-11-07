@@ -624,6 +624,7 @@ int main(void) {
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
     loadSaves();
+    loadSettings();
 
     while(1) {
         SceCtrlData pad;
@@ -647,33 +648,36 @@ int main(void) {
             if(press & PSP_CTRL_DOWN) selected=1;
             if(press & PSP_CTRL_CROSS) {
                 if(selected==0) { screen=3; selected=0; }
-                else { screen=6; selected=1; }
+                else { screen=9; selected=0; }
             }
             if(press & PSP_CTRL_CIRCLE) { screen=0; selected=0; }
         } else if(screen==2) {
             if(press & PSP_CTRL_UP) selected=0;
             if(press & PSP_CTRL_DOWN) selected=1;
-            if(selected==0 && (press & PSP_CTRL_CROSS)) soundOn=!soundOn;
-            if(selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; }
-            if(selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; }
+            if(selected==0 && (press & PSP_CTRL_CROSS)) { soundOn=!soundOn; writeSettings(); }
+            if(selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; writeSettings(); }
+            if(selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; writeSettings(); }
             if(press & PSP_CTRL_CIRCLE) { screen=0; selected=1; }
         } else if(screen==3) {
             if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=SAVE_COUNT-1; }
             if(press & PSP_CTRL_DOWN) { selected++; if(selected>=SAVE_COUNT) selected=0; }
             if(press & PSP_CTRL_CROSS) loadSave(selected);
             if(press & PSP_CTRL_CIRCLE) { screen=1; selected=0; }
+        } else if(screen==9) {
+            if(press & PSP_CTRL_CROSS) openPseudoKeyboard();
+            if(press & PSP_CTRL_START) { screen=6; selected=1; }
+            if(press & PSP_CTRL_CIRCLE) { screen=1; selected=1; }
         } else if(screen==6) {
             if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=5; }
             if(press & PSP_CTRL_DOWN) { selected++; if(selected>5) selected=0; }
             if(press & PSP_CTRL_CROSS) startGame();
             if(press & PSP_CTRL_CIRCLE) { screen=1; selected=1; }
         } else if(screen==5) {
-            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=2; }
-            if(press & PSP_CTRL_DOWN) { selected++; if(selected>2) selected=0; }
+            if(press & PSP_CTRL_UP) selected=0;
+            if(press & PSP_CTRL_DOWN) selected=1;
             if(press & PSP_CTRL_CROSS) {
                 if(selected==0) screen=4;
-                else if(selected==1) { hasKey=0; resetPosition(); screen=4; }
-                else { saveProgress(); screen=0; selected=0; }
+                else if(selected==1) { hasKey=0; health=100; resetPosition(); saveProgress(); screen=4; }
             }
             if((press & PSP_CTRL_START) || (press & PSP_CTRL_CIRCLE)) screen=4;
         } else if(screen==7 || screen==8) {
