@@ -12,7 +12,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Prepare menu textures
+      - name: Install image decoder
+        run: sudo apt-get update && sudo apt-get install -y python3-pil
+      - name: Prepare menu textures and custom arrows
         run: python3 tools/prepare_assets.py
       - name: Upload menu textures
         uses: actions/upload-artifact@v4
