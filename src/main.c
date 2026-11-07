@@ -436,9 +436,9 @@ static void drawMenu(void) {
     } else if(screen==1) {
         drawTexture(tex_play_menu);
     } else if(screen==2) {
-        drawTexture(tex_settings);
+        /* Interactive settings overlay; no static screen image. */
     } else if(screen==3) {
-        drawTexture(tex_play_resume);
+        /* Real save slots are rendered below; do not display sample saves. */
     } else if(screen==6) {
         drawTexture(tex_start_adventure);
     } else {
@@ -453,18 +453,21 @@ static void printOverlay(void) {
         pspDebugScreenSetXY(1,1);
         pspDebugScreenPrintf("MONDE %d/%d  -  NIVEAU %02d/%02d",world,WORLD_COUNT,level,LEVELS_PER_WORLD);
         pspDebugScreenSetXY(1,2);
-        if(hasKey) pspDebugScreenPrintf("CLE : OUI  |  PORTE : OUVERTE  |  VIES : ");
-        else pspDebugScreenPrintf("OBJECTIF : TROUVE LA CLE  |  VIES : ");
+        pspDebugScreenPrintf("PSEUDO : %s  |  CLES : %d/1  |  VIES : ",playerPseudo,hasKey?1:0);
         if(lives<0) pspDebugScreenPrintf("INFINI");
         else pspDebugScreenPrintf("%d",lives);
+        pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("SANTE : %d%%",health);
         pspDebugScreenSetXY(1,31);
         pspDebugScreenPrintf("STICK / FLECHES : BOUGER     START : PAUSE");
     } else if(screen==1) {
         pspDebugScreenSetXY(3,30); pspDebugScreenPrintf("HAUT/BAS : CHOISIR   CROIX : VALIDER   ROND : RETOUR");
     } else if(screen==2) {
-        pspDebugScreenSetXY(4,10); pspDebugScreenPrintf("SON : %s",soundOn?"ACTIVE":"COUPE");
-        pspDebugScreenSetXY(4,13); pspDebugScreenPrintf("VOLUME : %d%%",volume);
-        pspDebugScreenSetXY(4,17); pspDebugScreenPrintf("CROIX : MODIFIER   GAUCHE/DROITE : VOLUME");
+        pspDebugScreenSetXY(10,7); pspDebugScreenPrintf("PARAMETRES");
+        pspDebugScreenSetXY(7,12); pspDebugScreenPrintf("%s SON : %s",selected==0?">":" ",soundOn?"ACTIVE":"COUPE");
+        pspDebugScreenSetXY(7,16); pspDebugScreenPrintf("%s VOLUME : %d%%",selected==1?">":" ",volume);
+        pspDebugScreenSetXY(7,22); pspDebugScreenPrintf("CROIX : ACTIVER / COUPER");
+        pspDebugScreenSetXY(7,24); pspDebugScreenPrintf("GAUCHE/DROITE : REGLER VOLUME");
+        pspDebugScreenSetXY(7,30); pspDebugScreenPrintf("ROND : RETOUR");
     } else if(screen==3) {
         for(i=0;i<SAVE_COUNT;i++) {
             pspDebugScreenSetXY(4,7+i*4);
@@ -478,7 +481,12 @@ static void printOverlay(void) {
         pspDebugScreenSetXY(19,11); pspDebugScreenPrintf("PAUSE");
         pspDebugScreenSetXY(15,15); pspDebugScreenPrintf("%s REPRENDRE",selected==0?">":" ");
         pspDebugScreenSetXY(15,18); pspDebugScreenPrintf("%s RECOMMENCER LE NIVEAU",selected==1?">":" ");
-        pspDebugScreenSetXY(15,21); pspDebugScreenPrintf("%s MENU PRINCIPAL",selected==2?">":" ");
+        pspDebugScreenSetXY(12,23); pspDebugScreenPrintf("RETOUR AU MENU PRINCIPAL DESACTIVE");
+    } else if(screen==9) {
+        pspDebugScreenSetXY(10,10); pspDebugScreenPrintf("CHOISIS TON PSEUDO");
+        pspDebugScreenSetXY(10,15); pspDebugScreenPrintf("PSEUDO ACTUEL : %s",playerPseudo);
+        pspDebugScreenSetXY(10,20); pspDebugScreenPrintf("CROIX : OUVRIR LE CLAVIER PSP");
+        pspDebugScreenSetXY(10,24); pspDebugScreenPrintf("START : VALIDER ET CONTINUER");
     } else if(screen==6) {
         static const char *names[6]={"FACILE - 5 VIES","NORMAL - 3 VIES","DIFFICILE - 2 VIES","EXTREME - 1 VIE","HARDCORE - 1 ESSAI","ENTRAINEMENT - INFINI"};
         pspDebugScreenSetXY(10,5); pspDebugScreenPrintf("CHOISIS TA DIFFICULTE");
