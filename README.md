@@ -34,5 +34,5 @@ La compilation GitHub Actions valide la construction de l'EBOOT ; une vérificat
 - The first prototype room uses one key and a locked exit. Reaching the exit after collecting the key completes the level and saves a checkpoint at the next level's start.
 - The prototype advances through 10 numbered levels per world and 6 world counters. At this stage the room geometry is still a placeholder reused for each level; worlds 2–6 do not yet have their final environments or unique mechanics.
 - Hardcore has one total attempt. Losing it clears the active run and returns the next attempt to World 1, Level 1. Other difficulties keep their remaining attempts in the save slot.
-- The main menu artwork and layout are unchanged in this commit. The requested custom yellow arrow images have **not yet been integrated**; the existing drawn arrow placeholders remain pending that asset pass.
+- The main menu artwork and layout are unchanged. Only its arrow indicators now use the two original yellow arrow designs from `assets/Assets/`.
 - Save format version 2 stores world, level, difficulty, lives, health, keys and trap state. Existing version 1 save files are not migrated and will be treated as empty.
