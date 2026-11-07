@@ -105,6 +105,24 @@ static void begin2D(void) {
     sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
 }
 
+static void drawRect2D(float x1,float y1,float x2,float y2,unsigned int color) {
+    Vertex3D v[2] __attribute__((aligned(16)));
+    v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
+    v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
+    sceKernelDcacheWritebackRange(v,sizeof(v));
+    sceGuDisable(GU_TEXTURE_2D);
+    sceGuDrawArray(GU_SPRITES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
+}
+
+static void drawHealthBar(void) {
+    float width=(health<0?0.0f:(health>100?100.0f:(float)health))*1.40f;
+    unsigned int fill=(health>60?0xff35c759:(health>30?0xffffb52e:0xffe5484d));
+    begin2D();
+    drawRect2D(12.0f,10.0f,156.0f,24.0f,0xff17191e);
+    drawRect2D(14.0f,12.0f,154.0f,22.0f,0xff4b4b52);
+    if(width>0.0f) drawRect2D(14.0f,12.0f,14.0f+width,22.0f,fill);
+}
+
 static void begin3D(void) {
     sceGuEnable(GU_DEPTH_TEST);
     sceGuDepthFunc(GU_GEQUAL);
@@ -342,7 +360,7 @@ static void loseLife(void) {
 static void nextLevel(void) {
     level++;
     if(level>LEVELS_PER_WORLD) { level=1; world++; }
-    hasKey=0;
+    hasKey=0; health=100;
     resetPosition();
     keyX=(float)((level%3)-1)*1.65f;
     keyZ=-1.25f-(float)((level%2)*0.35f);
@@ -389,8 +407,15 @@ static void updateGameplay(const SceCtrlData *pad,unsigned int press) {
                    (p==2 && fabsf(catX+2.65f)<0.58f && fabsf(catZ-1.95f)<0.58f);
         if(onTrap) {
             hasKey=0;
-            loseLife();
-            if(screen!=4) return;
+            health-=35;
+            resetPosition();
+            if(health<=0) {
+                health=100;
+                loseLife();
+                if(screen!=4) return;
+            } else saveProgress();
+            strncpy(notice,"Aie ! Le chat est blesse.",sizeof(notice)-1);
+            noticeFrames=100;
         }
     }
     if(!hasKey && fabsf(catX-keyX)<0.52f && fabsf(catZ-keyZ)<0.52f) {
@@ -484,7 +509,7 @@ static void drawFrame(void) {
     sceGuClearColor(0xff252a33);
     sceGuClearDepth(0);
     sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
-    if(screen==4) drawGameplay();
+    if(screen==4) { drawGameplay(); drawHealthBar(); }
     else drawMenu();
     sceGuFinish();
     sceGuSync(GU_SYNC_FINISH,GU_SYNC_WHAT_DONE);
