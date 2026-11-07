@@ -1,24 +1,26 @@
 .section .rodata
 .align 4
-.global menu_main_texture
-menu_main_texture:
-.incbin "build/menu_main.rgba"
-.global menu_play_resume_texture
-menu_play_resume_texture:
-.incbin "build/menu_play_resume.rgba"
-.global menu_play_new_texture
-menu_play_new_texture:
-.incbin "build/menu_play_new.rgba"
-.global menu_settings_texture
-menu_settings_texture:
-.incbin "build/menu_settings.rgba"
-.global menu_resume_texture
-menu_resume_texture:
-.incbin "build/menu_resume.rgba"
-
-.global menu_arrow_left_texture
-menu_arrow_left_texture:
-.incbin "build/arrow_left.rgba"
-.global menu_arrow_right_texture
-menu_arrow_right_texture:
-.incbin "build/arrow_right.rgba"
+.global tex_main_default
+tex_main_default:
+.incbin "build/main_default.rgba"
+.global tex_main_play
+tex_main_play:
+.incbin "build/main_play.rgba"
+.global tex_main_settings
+tex_main_settings:
+.incbin "build/main_settings.rgba"
+.global tex_main_quit
+tex_main_quit:
+.incbin "build/main_quit.rgba"
+.global tex_play_resume
+tex_play_resume:
+.incbin "build/play_resume.rgba"
+.global tex_play_new
+tex_play_new:
+.incbin "build/play_new.rgba"
+.global tex_settings
+tex_settings:
+.incbin "build/settings.rgba"
+.global tex_saves
+tex_saves:
+.incbin "build/saves.rgba"

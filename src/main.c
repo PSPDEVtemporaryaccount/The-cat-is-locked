@@ -1,85 +1,45 @@
 #include <pspkernel.h>
-#include <psploadexec.h>
 #include <pspdisplay.h>
 #include <pspdebug.h>
 #include <pspctrl.h>
 #include <pspiofilemgr.h>
 #include <pspgu.h>
 #include <pspgum.h>
+#include <math.h>
 #include <stdint.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 1, 0);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
-#define BUF_WIDTH 512
-#define SCR_WIDTH 480
-#define SCR_HEIGHT 272
-#define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK0001"
-#define SAVE_PATH SAVE_DIR "/DATA.BIN"
-#define SAVE_MAGIC 0x54434C4B
-#define SAVE_VERSION 2
-#define SAVE_SLOTS 5
+#define SCREEN_W 480
+#define SCREEN_H 272
+#define BUF_W 512
+#define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK070"
+#define SAVE_PATH SAVE_DIR "/SAVE.DAT"
+#define SAVE_MAGIC 0x54434C37
+#define SAVE_VERSION 1
+#define SAVE_COUNT 5
+#define WORLD_COUNT 6
+#define LEVELS_PER_WORLD 10
 
-typedef struct { unsigned int color; float x, y, z; } Vertex3D;
-typedef struct { unsigned int color; float x, y, z; } Vertex2D;
-typedef struct { float u, v; unsigned int color; float x, y, z; } VertexTex2D;
+typedef struct { unsigned int color; float x,y,z; } Vertex3D;
+typedef struct { float u,v; unsigned int color; float x,y,z; } VertexTex2D;
+typedef struct { int valid, world, level, lives, difficulty; } SaveSlot;
+typedef struct { unsigned int magic, version; SaveSlot slots[SAVE_COUNT]; } SaveFile;
 
-typedef struct {
-    int valid;
-    int level;
-    int world;
-    int lives;
-    int difficulty;
-    float catX;
-    float catZ;
-    int health;
-    int keysCollected;
-    int keyPicked[2];
-    int trapTriggered[4];
-} SaveSlot;
-
-typedef struct {
-    unsigned int magic;
-    unsigned int version;
-    SaveSlot slots[SAVE_SLOTS];
-} SaveFile;
-
-extern unsigned char menu_main_texture[];
-extern unsigned char menu_play_resume_texture[];
-extern unsigned char menu_play_new_texture[];
-extern unsigned char menu_settings_texture[];
-extern unsigned char menu_resume_texture[];
-extern unsigned char menu_arrow_left_texture[];
-extern unsigned char menu_arrow_right_texture[];
+extern unsigned char tex_main_default[];
+extern unsigned char tex_main_play[];
+extern unsigned char tex_main_settings[];
+extern unsigned char tex_main_quit[];
+extern unsigned char tex_play_resume[];
+extern unsigned char tex_play_new[];
+extern unsigned char tex_settings[];
+extern unsigned char tex_saves[];
 
 static unsigned int __attribute__((aligned(16))) displayList[262144];
-static int menu = 0; /* 0 accueil, 1 jouer, 2 paramètres, 3 confirmation, 4 jeu, 5 reprise */
-static int selected = 0;
-static int soundOn = 1;
-static int volume = 70;
-static float catX = 0.0f, catZ = 0.0f;
-static int keyFound = 0;
-static int keysCollected = 0;
-static int keyPicked[2] = {0,0};
-static int health = 100;
-static int difficulty = 1;
-static int lives = 3;
-static int currentWorld = 1;
-static int currentLevel = 1;
-static int trainingMode = 0;
-static int trapTriggered[4] = {0,0,0,0};
-static int currentSlot = -1;
-static SaveSlot saveSlots[SAVE_SLOTS];
-static int messageCode = 0;
-static int messageFrames = 0;
-static void *renderBuffer = (void*)0;
-
-static const float keyPos[2][2] = {{-2.5f,-2.2f},{2.5f,-2.2f}};
-static const float trapPos[4][2] = {{-2.0f,0.6f},{-0.7f,1.6f},{0.8f,0.6f},{2.0f,1.6f}};
-
 static Vertex3D cube[36] __attribute__((aligned(16))) = {
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,-.5f,-.5f},{0xffffffff,.5f,.5f,-.5f},
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,.5f,-.5f},{0xffffffff,-.5f,.5f,-.5f},
@@ -95,53 +55,41 @@ static Vertex3D cube[36] __attribute__((aligned(16))) = {
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,-.5f,.5f},{0xffffffff,.5f,-.5f,-.5f}
 };
 
+static int screen=0; /* accueil, jouer, paramètres, sauvegardes, jeu, pause, difficulté, défaite, victoire */
+static int selected=0, difficulty=1, lives=3, world=1, level=1, hasKey=0, currentSlot=-1;
+static int soundOn=1, volume=70, noticeFrames=0;
+static float catX=0.0f, catZ=2.65f, keyX=0.0f, keyZ=-1.25f;
+static SaveSlot saves[SAVE_COUNT];
+static char notice[64];
+
 static void drawCube(float x,float y,float z,float sx,float sy,float sz,unsigned int color) {
     int i;
+    ScePspFVector3 p={x,y,z}, s={sx,sy,sz};
     for(i=0;i<36;i++) cube[i].color=color;
     sceKernelDcacheWritebackRange(cube,sizeof(cube));
     sceGumPushMatrix();
-    ScePspFVector3 p={x,y,z}, s={sx,sy,sz};
     sceGumTranslate(&p);
     sceGumScale(&s);
     sceGumDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_3D,36,0,cube);
     sceGumPopMatrix();
 }
 
-static void drawRect(float x1,float y1,float x2,float y2,unsigned int color) {
-    Vertex2D v[2] __attribute__((aligned(16)));
-    v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
-    v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
-    sceKernelDcacheWritebackRange(v,sizeof(v));
-    sceGuDrawArray(GU_SPRITES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
-}
-
-static void drawTriangle(float x1,float y1,float x2,float y2,float x3,float y3,unsigned int color) {
-    Vertex2D v[3] __attribute__((aligned(16)));
-    v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
-    v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
-    v[2].color=color; v[2].x=x3; v[2].y=y3; v[2].z=0.0f;
-    sceKernelDcacheWritebackRange(v,sizeof(v));
-    sceGuDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,3,0,v);
-}
-
-static void drawArrowSprite(const unsigned char *pixels,float x,float y) {
+static void drawTexture(const unsigned char *pixels) {
     VertexTex2D v[2] __attribute__((aligned(16)));
     v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
-    v[0].x=x; v[0].y=y; v[0].z=0.0f;
-    v[1].u=128.0f; v[1].v=64.0f; v[1].color=0xffffffff;
-    v[1].x=x+38.0f; v[1].y=y+19.0f; v[1].z=0.0f;
+    v[0].x=0.0f; v[0].y=0.0f; v[0].z=0.0f;
+    v[1].u=480.0f; v[1].v=272.0f; v[1].color=0xffffffff;
+    v[1].x=480.0f; v[1].y=272.0f; v[1].z=0.0f;
     sceKernelDcacheWritebackRange(v,sizeof(v));
     sceGuEnable(GU_TEXTURE_2D);
     sceGuTexMode(GU_PSM_8888,0,0,0);
-    sceGuTexImage(0,128,64,128,pixels);
-    sceGuTexFunc(GU_TFX_MODULATE,GU_TCC_RGBA);
+    sceGuTexImage(0,512,512,512,pixels);
+    sceGuTexFunc(GU_TFX_REPLACE,GU_TCC_RGBA);
     sceGuTexFilter(GU_LINEAR,GU_LINEAR);
     sceGuTexWrap(GU_CLAMP,GU_CLAMP);
     sceGuDrawArray(GU_SPRITES,GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
     sceGuDisable(GU_TEXTURE_2D);
 }
-static void drawArrowRight(float x,float y) { drawArrowSprite(menu_arrow_right_texture,x,y); }
-static void drawArrowLeft(float x,float y) { drawArrowSprite(menu_arrow_left_texture,x,y); }
 
 static void begin2D(void) {
     sceGuDisable(GU_DEPTH_TEST);
@@ -150,398 +98,398 @@ static void begin2D(void) {
     sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
 }
 
-static void drawTexture(const unsigned char *pixels,int textureHeight,int imageHeight,float y) {
-    VertexTex2D v[2] __attribute__((aligned(16)));
-    v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
-    v[0].x=0.0f; v[0].y=y; v[0].z=0.0f;
-    v[1].u=480.0f; v[1].v=(float)imageHeight; v[1].color=0xffffffff;
-    v[1].x=480.0f; v[1].y=y+(float)imageHeight; v[1].z=0.0f;
-    sceKernelDcacheWritebackRange(v,sizeof(v));
-    sceGuEnable(GU_TEXTURE_2D);
-    sceGuTexMode(GU_PSM_8888,0,0,0);
-    sceGuTexImage(0,512,textureHeight,512,pixels);
-    sceGuTexFunc(GU_TFX_REPLACE,GU_TCC_RGBA);
-    sceGuTexFilter(GU_LINEAR,GU_LINEAR);
-    sceGuTexWrap(GU_CLAMP,GU_CLAMP);
-    sceGuDrawArray(GU_SPRITES,GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
-    sceGuDisable(GU_TEXTURE_2D);
-}
-
-/* Clean gameplay prototype: deliberately 2D first, to establish a reliable visible frame.
-   Menus remain unchanged. This is a scaffold for rebuilding gameplay incrementally. */
-static void drawGameplayScreen(void) {
-    begin2D();
-
-    /* Room backdrop and simple perspective-inspired walls/floor */
-    drawRect(0,0,480,272,0xff292f3b);
-    drawRect(0,0,480,145,0xff424d61);
-    drawRect(0,145,480,272,0xff80664f);
-    drawRect(0,145,480,153,0xffb7a18a);
-    drawRect(32,42,448,145,0xff6b7180);
-    drawRect(40,50,440,137,0xff8c929f);
-    drawRect(40,50,440,57,0xffaab0ba);
-    drawRect(40,130,440,137,0xff737987);
-
-    /* Door clearly visible at the far end */
-    drawRect(194,62,286,145,0xff3c2b22);
-    drawRect(201,68,279,145,0xff8b5d3b);
-    drawRect(207,74,273,139,0xffa8784e);
-    drawRect(259,104,267,112,0xffffd36a);
-
-    /* Cat placeholder: a readable stylized sprite, moved by the D-pad/stick */
+static void begin3D(void) {
+    sceGuEnable(GU_DEPTH_TEST);
+    sceGuDepthFunc(GU_GEQUAL);
+    sceGumMatrixMode(GU_PROJECTION); sceGumLoadIdentity();
+    sceGumPerspective(52.0f,16.0f/9.0f,0.5f,80.0f);
+    sceGumMatrixMode(GU_VIEW); sceGumLoadIdentity();
     {
-        float sx=catX*34.0f+240.0f;
-        float sy=catZ*20.0f+190.0f;
-        drawRect(sx-18,sy-17,sx+18,sy+12,0xff5a514b);
-        drawRect(sx-13,sy-31,sx+13,sy-8,0xff5a514b);
-        drawTriangle(sx-13,sy-26,sx-8,sy-39,sx-2,sy-26,0xff302b28);
-        drawTriangle(sx+2,sy-26,sx+8,sy-39,sx+13,sy-26,0xff302b28);
-        drawRect(sx-8,sy-21,sx-4,sy-17,0xffffd36a);
-        drawRect(sx+4,sy-21,sx+8,sy-17,0xffffd36a);
-        drawRect(sx-12,sy+9,sx-5,sy+20,0xff302b28);
-        drawRect(sx+5,sy+9,sx+12,sy+20,0xff302b28);
-        drawRect(sx+16,sy-1,sx+29,sy+4,0xff5a514b);
+        ScePspFVector3 eye={0.0f,7.0f,10.5f};
+        ScePspFVector3 target={0.0f,0.45f,0.0f};
+        ScePspFVector3 up={0.0f,1.0f,0.0f};
+        sceGumLookAt(&eye,&target,&up);
     }
-
-    /* Minimal HUD; no legacy keys, traps, health, or progression mechanics. */
-    drawRect(8,8,174,32,0xd9000000);
-    drawRect(14,14,168,26,0xffd8d8d8);
-    drawRect(18,18,164,22,0xff4c9c5a);
-    drawRect(8,238,200,264,0xd9000000);
-    drawRect(14,244,194,258,0xff333b48);
-}
-static void drawMenuScreen(void) {
-    begin2D();
-    if(menu==0) {
-        drawTexture(menu_main_texture,512,272,0.0f);
-        if(selected==0) { drawArrowRight(20,151); drawArrowLeft(180,151); }
-        else if(selected==1) { drawArrowRight(20,190); drawArrowLeft(180,190); }
-        else { drawArrowRight(20,229); drawArrowLeft(180,229); }
-    } else if(menu==1) {
-        if(selected==0) drawTexture(menu_play_resume_texture,512,272,0.0f);
-        else drawTexture(menu_play_new_texture,512,272,0.0f);
-    } else if(menu==2) {
-        drawTexture(menu_settings_texture,512,272,0.0f);
-        if(selected==0) { drawArrowRight(239,76); drawArrowLeft(431,76); }
-        else if(selected==1) { drawArrowRight(239,132); drawArrowLeft(431,132); }
-        else { drawArrowRight(239,181); drawArrowLeft(431,181); }
-        drawRect(291,141,454,145,0xff777777);
-        if(volume>0) drawRect(291,141,291+(163.0f*(float)volume/100.0f),145,0xffffd34e);
-        drawRect(415,83,454,103,soundOn?0xff3c8c38:0xff555555);
-        drawRect(soundOn?438:418,86,soundOn?450:430,100,0xffd8d8d8);
-    } else if(menu==3) {
-        drawTexture(menu_settings_texture,512,272,0.0f);
-        drawRect(52,65,428,210,0xff242a30);
-        drawRect(58,71,422,204,0xff4b5158);
-        drawRect(112,127,368,155,selected==0?0xff9a6637:0xff354352);
-        drawRect(112,165,368,193,selected==1?0xff9a6637:0xff354352);
-        if(selected==0) { drawArrowRight(80,132); drawArrowLeft(370,132); }
-        else { drawArrowRight(80,170); drawArrowLeft(370,170); }
-    } else if(menu==5) {
-        int i;
-        drawTexture(menu_resume_texture,512,272,0.0f);
-        for(i=0;i<SAVE_SLOTS;i++) {
-            static const float rowY[SAVE_SLOTS]={33.0f,73.0f,121.0f,169.0f,217.0f};
-            float y=rowY[i];
-            if(selected==i) { drawArrowRight(245,y); drawArrowLeft(420,y); }
-        }
-    }
+    sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
 }
 
-static void makeSaveDirectory(void) {
+static void drawCat(void) {
+    float x=catX, z=catZ;
+    drawCube(x,0.42f,z,0.82f,0.48f,0.58f,0xff554c47);
+    drawCube(x,0.78f,z-0.34f,0.58f,0.55f,0.48f,0xff6d625b);
+    drawCube(x-0.20f,1.13f,z-0.48f,0.19f,0.30f,0.17f,0xff403a36);
+    drawCube(x+0.20f,1.13f,z-0.48f,0.19f,0.30f,0.17f,0xff403a36);
+    drawCube(x-0.13f,0.83f,z-0.59f,0.07f,0.08f,0.035f,0xffffd85c);
+    drawCube(x+0.13f,0.83f,z-0.59f,0.07f,0.08f,0.035f,0xffffd85c);
+    drawCube(x-0.13f,0.83f,z-0.625f,0.025f,0.055f,0.02f,0xff171717);
+    drawCube(x+0.13f,0.83f,z-0.625f,0.025f,0.055f,0.02f,0xff171717);
+    drawCube(x-0.23f,0.18f,z+0.12f,0.16f,0.38f,0.18f,0xff403a36);
+    drawCube(x+0.23f,0.18f,z+0.12f,0.16f,0.38f,0.18f,0xff403a36);
+    drawCube(x,0.45f,z+0.48f,0.13f,0.13f,0.55f,0xff6d625b);
+}
+
+static void drawKey(void) {
+    if(hasKey) return;
+    drawCube(keyX,0.28f,keyZ,0.62f,0.10f,0.12f,0xffffd34e);
+    drawCube(keyX-0.30f,0.28f,keyZ,0.25f,0.25f,0.13f,0xffffd34e);
+    drawCube(keyX+0.22f,0.22f,keyZ,0.10f,0.18f,0.14f,0xffffd34e);
+    drawCube(keyX+0.34f,0.18f,keyZ,0.09f,0.12f,0.14f,0xffffd34e);
+}
+
+static void drawRoom(void) {
+    unsigned int wall=0xff747b86, trim=0xffa7adb4;
+    drawCube(0.0f,-0.25f,0.0f,8.0f,0.5f,8.0f,0xff88745e);
+    drawCube(-4.0f,1.35f,0.0f,0.28f,3.2f,8.0f,wall);
+    drawCube(4.0f,1.35f,0.0f,0.28f,3.2f,8.0f,wall);
+    drawCube(-2.55f,1.35f,-4.0f,2.9f,3.2f,0.28f,wall);
+    drawCube(2.55f,1.35f,-4.0f,2.9f,3.2f,0.28f,wall);
+    drawCube(0.0f,2.85f,-4.0f,2.2f,0.22f,0.28f,trim);
+    drawCube(0.0f,1.10f,-3.78f,1.45f,2.15f,0.16f,hasKey?0xff7b9b70:0xff70452f);
+    drawCube(0.48f,1.05f,-3.66f,0.10f,0.10f,0.10f,0xffffd34e);
+    drawCube(-3.82f,1.45f,-1.8f,0.04f,1.55f,1.15f,trim);
+    drawCube(3.82f,1.45f,1.7f,0.04f,1.55f,1.15f,trim);
+}
+
+static void drawGameplay(void) {
+    int pattern=level%3;
+    begin3D();
+    drawRoom();
+    if(pattern==0) {
+        drawCube(-1.45f,0.45f,0.0f,0.85f,0.9f,0.85f,0xff80634c);
+        drawCube(1.45f,0.45f,-1.0f,0.85f,0.9f,0.85f,0xff80634c);
+    } else if(pattern==1) {
+        drawCube(0.0f,0.38f,0.35f,1.9f,0.75f,0.65f,0xff80634c);
+        drawCube(-2.2f,0.35f,-1.3f,0.55f,0.7f,0.8f,0xff80634c);
+    } else {
+        drawCube(-1.8f,0.4f,-1.1f,0.7f,0.8f,1.2f,0xff80634c);
+        drawCube(1.8f,0.4f,0.2f,0.7f,0.8f,1.2f,0xff80634c);
+        drawCube(0.0f,0.35f,1.2f,1.2f,0.7f,0.55f,0xff80634c);
+    }
+    drawKey();
+    drawCat();
+}
+
+static void resetPosition(void) {
+    catX=0.0f;
+    catZ=2.65f;
+}
+
+static int firstFreeSave(void) {
+    int i;
+    for(i=0;i<SAVE_COUNT;i++) if(!saves[i].valid) return i;
+    return -1;
+}
+
+static void makeSaveDir(void) {
     sceIoMkdir("ms0:/PSP",0777);
     sceIoMkdir("ms0:/PSP/SAVEDATA",0777);
     sceIoMkdir(SAVE_DIR,0777);
 }
 
-static void loadAllSaves(void) {
-    SaveFile file;
+static void loadSaves(void) {
+    SaveFile f;
     SceUID fd;
-    memset(saveSlots,0,sizeof(saveSlots));
+    memset(saves,0,sizeof(saves));
     fd=sceIoOpen(SAVE_PATH,PSP_O_RDONLY,0777);
     if(fd<0) return;
-    memset(&file,0,sizeof(file));
-    if(sceIoRead(fd,&file,sizeof(file))==(int)sizeof(file) &&
-       file.magic==SAVE_MAGIC && file.version==SAVE_VERSION) {
-        memcpy(saveSlots,file.slots,sizeof(saveSlots));
-    }
+    memset(&f,0,sizeof(f));
+    if(sceIoRead(fd,&f,sizeof(f))==(int)sizeof(f) && f.magic==SAVE_MAGIC && f.version==SAVE_VERSION)
+        memcpy(saves,f.slots,sizeof(saves));
     sceIoClose(fd);
 }
 
-static void saveAllSaves(void) {
-    SaveFile file;
+static void writeSaves(void) {
+    SaveFile f;
     SceUID fd;
-    makeSaveDirectory();
-    memset(&file,0,sizeof(file));
-    file.magic=SAVE_MAGIC;
-    file.version=SAVE_VERSION;
-    memcpy(file.slots,saveSlots,sizeof(saveSlots));
+    makeSaveDir();
+    memset(&f,0,sizeof(f));
+    f.magic=SAVE_MAGIC; f.version=SAVE_VERSION;
+    memcpy(f.slots,saves,sizeof(saves));
     fd=sceIoOpen(SAVE_PATH,PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC,0777);
-    if(fd<0) return;
-    sceIoWrite(fd,&file,sizeof(file));
-    sceIoClose(fd);
+    if(fd>=0) { sceIoWrite(fd,&f,sizeof(f)); sceIoClose(fd); }
 }
 
-static int findEmptySlot(void) {
-    int i;
-    for(i=0;i<SAVE_SLOTS;i++) if(!saveSlots[i].valid) return i;
-    return -1;
+static void saveProgress(void) {
+    if(currentSlot<0 || currentSlot>=SAVE_COUNT) return;
+    saves[currentSlot].valid=1;
+    saves[currentSlot].world=world;
+    saves[currentSlot].level=level;
+    saves[currentSlot].lives=lives;
+    saves[currentSlot].difficulty=difficulty;
+    writeSaves();
 }
 
-static void resetGameState(void) {
-    int i;
-    catX=0.0f; catZ=0.0f;
-    keyFound=0; keysCollected=0; health=100;
-    currentWorld=1; currentLevel=1;
-    trainingMode=(difficulty==5);
-    lives=(difficulty==0)?5:((difficulty==1)?3:((difficulty==2)?2:((difficulty==3)?1:((difficulty==4)?1:-1))));
-    keyPicked[0]=0; keyPicked[1]=0;
-    for(i=0;i<4;i++) trapTriggered[i]=0;
-}
-
-static void storeCurrentSlot(void) {
-    SaveSlot *slot;
-    if(currentSlot<0 || currentSlot>=SAVE_SLOTS) return;
-    slot=&saveSlots[currentSlot];
-    slot->valid=1;
-    slot->level=currentLevel;
-    slot->world=currentWorld;
-    slot->lives=lives;
-    slot->difficulty=difficulty;
-    slot->catX=catX;
-    slot->catZ=catZ;
-    slot->health=health;
-    slot->keysCollected=keysCollected;
-    slot->keyPicked[0]=keyPicked[0];
-    slot->keyPicked[1]=keyPicked[1];
-    memcpy(slot->trapTriggered,trapTriggered,sizeof(trapTriggered));
-    saveAllSaves();
-}
-
-static void startNewGame(void) {
-    int slot=findEmptySlot();
+static void startGame(void) {
+    int slot=firstFreeSave();
     if(slot<0) {
-        messageCode=1;
-        messageFrames=180;
+        strncpy(notice,"Les 5 emplacements sont occupes.",sizeof(notice)-1);
+        noticeFrames=180;
         return;
     }
-    resetGameState();
     currentSlot=slot;
-    storeCurrentSlot();
-    menu=4;
+    world=1; level=1;
+    difficulty=selected;
+    lives=(difficulty==0)?5:((difficulty==1)?3:((difficulty==2)?2:((difficulty==3 || difficulty==4)?1:-1)));
+    hasKey=0;
+    resetPosition();
+    keyX=(float)((level%3)-1)*1.65f;
+    keyZ=-1.25f;
+    saveProgress();
+    screen=4;
 }
 
-static void loadSaveSlot(int slotIndex) {
-    SaveSlot *slot;
-    if(slotIndex<0 || slotIndex>=SAVE_SLOTS || !saveSlots[slotIndex].valid) {
-        messageCode=2;
-        messageFrames=150;
+static void loadSave(int index) {
+    if(index<0 || index>=SAVE_COUNT || !saves[index].valid) {
+        strncpy(notice,"Cet emplacement est vide.",sizeof(notice)-1);
+        noticeFrames=120;
         return;
     }
-    slot=&saveSlots[slotIndex];
-    currentSlot=slotIndex;
-    currentLevel=slot->level; currentWorld=slot->world;
-    lives=slot->lives; difficulty=slot->difficulty; trainingMode=(difficulty==5);
-    catX=slot->catX; catZ=slot->catZ;
-    health=slot->health; keysCollected=slot->keysCollected;
-    keyPicked[0]=slot->keyPicked[0]; keyPicked[1]=slot->keyPicked[1];
-    memcpy(trapTriggered,slot->trapTriggered,sizeof(trapTriggered));
-    keyFound=(keysCollected>=2);
-    menu=4;
+    currentSlot=index;
+    world=saves[index].world;
+    level=saves[index].level;
+    lives=saves[index].lives;
+    difficulty=saves[index].difficulty;
+    hasKey=0;
+    resetPosition();
+    keyX=(float)((level%3)-1)*1.65f;
+    keyZ=-1.25f;
+    screen=4;
 }
 
-static void resetAllSaves(void) {
-    memset(saveSlots,0,sizeof(saveSlots));
-    currentSlot=-1;
-    sceIoRemove(SAVE_PATH);
+static void loseLife(void) {
+    if(lives>0) lives--;
+    resetPosition();
+    if(lives==0) {
+        if(currentSlot>=0) {
+            saves[currentSlot].valid=0;
+            writeSaves();
+        }
+        currentSlot=-1;
+        screen=7;
+        selected=0;
+    } else {
+        saveProgress();
+        strncpy(notice,"Aie ! Retour au debut de la piece.",sizeof(notice)-1);
+        noticeFrames=100;
+    }
 }
 
-static void printMenuText(void) {
+static void nextLevel(void) {
+    level++;
+    if(level>LEVELS_PER_WORLD) { level=1; world++; }
+    hasKey=0;
+    resetPosition();
+    keyX=(float)((level%3)-1)*1.65f;
+    keyZ=-1.25f-(float)((level%2)*0.35f);
+    if(world>WORLD_COUNT) { screen=8; selected=0; return; }
+    saveProgress();
+    strncpy(notice,"Porte ouverte ! Niveau suivant.",sizeof(notice)-1);
+    noticeFrames=120;
+}
+
+static int blocked(float x,float z) {
+    int p=level%3;
+    if(x<-3.45f || x>3.45f || z<-3.45f || z>3.45f) return 1;
+    if(p==0) {
+        if(fabsf(x+1.45f)<0.72f && fabsf(z)<0.72f) return 1;
+        if(fabsf(x-1.45f)<0.72f && fabsf(z+1.0f)<0.72f) return 1;
+    } else if(p==1) {
+        if(fabsf(x)<1.15f && fabsf(z-0.35f)<0.55f) return 1;
+        if(fabsf(x+2.2f)<0.42f && fabsf(z+1.3f)<0.52f) return 1;
+    } else {
+        if(fabsf(x+1.8f)<0.55f && fabsf(z+1.1f)<0.72f) return 1;
+        if(fabsf(x-1.8f)<0.55f && fabsf(z-0.2f)<0.72f) return 1;
+        if(fabsf(x)<0.75f && fabsf(z-1.2f)<0.45f) return 1;
+    }
+    return 0;
+}
+
+static void updateGameplay(const SceCtrlData *pad,unsigned int press) {
+    float dx=0.0f,dz=0.0f;
+    if(pad->Lx<105) dx-=0.075f;
+    if(pad->Lx>150) dx+=0.075f;
+    if(pad->Ly<105) dz-=0.075f;
+    if(pad->Ly>150) dz+=0.075f;
+    if(pad->Buttons & PSP_CTRL_LEFT) dx-=0.075f;
+    if(pad->Buttons & PSP_CTRL_RIGHT) dx+=0.075f;
+    if(pad->Buttons & PSP_CTRL_UP) dz-=0.075f;
+    if(pad->Buttons & PSP_CTRL_DOWN) dz+=0.075f;
+    if(dx!=0.0f && dz!=0.0f) { dx*=0.7071f; dz*=0.7071f; }
+    if(!blocked(catX+dx,catZ)) catX+=dx;
+    if(!blocked(catX,catZ+dz)) catZ+=dz;
+    if(!hasKey && fabsf(catX-keyX)<0.52f && fabsf(catZ-keyZ)<0.52f) {
+        hasKey=1;
+        strncpy(notice,"Cle trouvee ! Va vers la porte.",sizeof(notice)-1);
+        noticeFrames=150;
+    }
+    if(hasKey && catZ<-3.0f && fabsf(catX)<0.85f) nextLevel();
+    if(press & PSP_CTRL_START) { screen=5; selected=0; }
+}
+
+static void drawMenu(void) {
+    begin2D();
+    if(screen==0) {
+        const unsigned char *t=selected==0?tex_main_play:(selected==1?tex_main_settings:tex_main_quit);
+        drawTexture(t);
+    } else if(screen==1) {
+        drawTexture(selected==0?tex_play_resume:tex_play_new);
+    } else if(screen==2) {
+        drawTexture(tex_settings);
+    } else if(screen==3) {
+        drawTexture(tex_saves);
+    } else {
+        drawTexture(tex_main_default);
+    }
+}
+
+static void printOverlay(void) {
     int i;
     pspDebugScreenSetTextColor(0xffffffff);
-    if(menu==6) {
-        static const char *names[6]={"FACILE - 5 VIES","NORMAL - 3 VIES","DIFFICILE - 2 VIES","EXTREME - 1 VIE","HARDCORE - 1 ESSAI","ENTRAINEMENT - INFINI"};
-        pspDebugScreenSetXY(10,7); pspDebugScreenPrintf("CHOISIR LA DIFFICULTE");
-        for(i=0;i<6;i++) { pspDebugScreenSetXY(8,11+i*3); pspDebugScreenPrintf("%s %s",selected==i?">":" ",names[i]); }
-    } else if(menu==7) {
-        pspDebugScreenSetXY(18,13); pspDebugScreenPrintf("GAME OVER");
-        pspDebugScreenSetXY(7,17); pspDebugScreenPrintf("CROIX : RETOUR AU MENU PRINCIPAL");
-    } else if(menu==3) {
-        pspDebugScreenSetXY(10,10);
-        pspDebugScreenPrintf("REINITIALISER TOUTES LES SAUVEGARDES ?");
-        pspDebugScreenSetXY(21,17);
-        pspDebugScreenPrintf("%s NON",selected==0?">":" ");
-        pspDebugScreenSetXY(21,22);
-        pspDebugScreenPrintf("%s OUI, TOUT EFFACER",selected==1?">":" ");
-    } else if(menu==5) {
-        for(i=0;i<SAVE_SLOTS;i++) {
-            static const int rowLines[SAVE_SLOTS]={6,11,17,23,29};
-            pspDebugScreenSetXY(35,rowLines[i]);
-            if(saveSlots[i].valid)
-                pspDebugScreenPrintf("Niveau %d, Monde %d",saveSlots[i].level,saveSlots[i].world);
-            else
-                pspDebugScreenPrintf("Emplacement vide");
+    if(screen==4) {
+        pspDebugScreenSetXY(1,1);
+        pspDebugScreenPrintf("MONDE %d/%d  -  NIVEAU %02d/%02d",world,WORLD_COUNT,level,LEVELS_PER_WORLD);
+        pspDebugScreenSetXY(1,2);
+        if(hasKey) pspDebugScreenPrintf("CLE : OUI  |  PORTE : OUVERTE  |  VIES : ");
+        else pspDebugScreenPrintf("OBJECTIF : TROUVE LA CLE  |  VIES : ");
+        if(lives<0) pspDebugScreenPrintf("INFINI");
+        else pspDebugScreenPrintf("%d",lives);
+        pspDebugScreenSetXY(1,31);
+        pspDebugScreenPrintf("STICK / FLECHES : BOUGER     START : PAUSE");
+    } else if(screen==1) {
+        pspDebugScreenSetXY(3,30); pspDebugScreenPrintf("HAUT/BAS : CHOISIR   CROIX : VALIDER   ROND : RETOUR");
+    } else if(screen==2) {
+        pspDebugScreenSetXY(4,10); pspDebugScreenPrintf("SON : %s",soundOn?"ACTIVE":"COUPE");
+        pspDebugScreenSetXY(4,13); pspDebugScreenPrintf("VOLUME : %d%%",volume);
+        pspDebugScreenSetXY(4,17); pspDebugScreenPrintf("CROIX : MODIFIER   GAUCHE/DROITE : VOLUME");
+    } else if(screen==3) {
+        for(i=0;i<SAVE_COUNT;i++) {
+            pspDebugScreenSetXY(4,7+i*4);
+            if(saves[i].valid)
+                pspDebugScreenPrintf("%s SLOT %d  -  MONDE %d / NIVEAU %d  -  VIES %d",
+                    selected==i?">":" ",i+1,saves[i].world,saves[i].level,saves[i].lives);
+            else pspDebugScreenPrintf("%s SLOT %d  -  VIDE",selected==i?">":" ",i+1);
         }
-    } else if(menu==4) {
-        pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("GAMEPLAY BASE PROPRE - MONDE %d / NIVEAU %d",currentWorld,currentLevel);
-        pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("D-PAD / STICK : DEPLACER LE CHAT | ROND : MENU");
+        pspDebugScreenSetXY(4,30); pspDebugScreenPrintf("CROIX : CHARGER   ROND : RETOUR");
+    } else if(screen==5) {
+        pspDebugScreenSetXY(19,11); pspDebugScreenPrintf("PAUSE");
+        pspDebugScreenSetXY(15,15); pspDebugScreenPrintf("%s REPRENDRE",selected==0?">":" ");
+        pspDebugScreenSetXY(15,18); pspDebugScreenPrintf("%s RECOMMENCER LE NIVEAU",selected==1?">":" ");
+        pspDebugScreenSetXY(15,21); pspDebugScreenPrintf("%s MENU PRINCIPAL",selected==2?">":" ");
+    } else if(screen==6) {
+        static const char *names[6]={"FACILE - 5 VIES","NORMAL - 3 VIES","DIFFICILE - 2 VIES","EXTREME - 1 VIE","HARDCORE - 1 ESSAI","ENTRAINEMENT - INFINI"};
+        pspDebugScreenSetXY(10,5); pspDebugScreenPrintf("CHOISIS TA DIFFICULTE");
+        for(i=0;i<6;i++) { pspDebugScreenSetXY(9,9+i*3); pspDebugScreenPrintf("%s %s",selected==i?">":" ",names[i]); }
+    } else if(screen==7) {
+        pspDebugScreenSetXY(19,12); pspDebugScreenPrintf("PARTIE TERMINEE");
+        pspDebugScreenSetXY(10,17); pspDebugScreenPrintf("CROIX : RETOUR AU MENU PRINCIPAL");
+    } else if(screen==8) {
+        pspDebugScreenSetXY(19,12); pspDebugScreenPrintf("BRAVO !");
+        pspDebugScreenSetXY(8,16); pspDebugScreenPrintf("TU AS TERMINE LES 6 MONDES !");
+        pspDebugScreenSetXY(10,20); pspDebugScreenPrintf("CROIX : MENU PRINCIPAL");
     }
-    if(messageFrames>0) {
-        pspDebugScreenSetTextColor(0xffffff00);
-        pspDebugScreenSetXY(8,30);
-        if(messageCode==1) pspDebugScreenPrintf("5 SAUVEGARDES MAXIMUM : REINITIALISEZ POUR RECOMMENCER");
-        else if(messageCode==2) pspDebugScreenPrintf("CET EMPLACEMENT EST VIDE");
+    if(noticeFrames>0) {
+        pspDebugScreenSetTextColor(0xffffff55);
+        pspDebugScreenSetXY(3,28);
+        pspDebugScreenPrintf("%s",notice);
     }
-}
-
-static void begin3D(void) {
-    sceGuStart(GU_DIRECT,displayList);
-    sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
-    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
-    sceGuDepthRange(65535,0);
-    sceGuScissor(0,0,SCR_WIDTH,SCR_HEIGHT);
-    sceGuEnable(GU_SCISSOR_TEST);
-    sceGuEnable(GU_DEPTH_TEST);
-    sceGuDepthFunc(GU_GEQUAL);
-    sceGuFrontFace(GU_CW);
-    sceGuShadeModel(GU_SMOOTH);
-    sceGuClearColor(0xff000000);
-    sceGuClearDepth(0);
-    sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
-    sceGumMatrixMode(GU_PROJECTION);
-    sceGumLoadIdentity();
-    sceGumPerspective(48.0f,16.0f/9.0f,0.5f,100.0f);
-    sceGumMatrixMode(GU_VIEW);
-    sceGumLoadIdentity();
-    ScePspFVector3 eye={0.0f,5.5f,10.0f}, target={0.0f,0.5f,0.0f}, up={0.0f,1.0f,0.0f};
-    sceGumLookAt(&eye,&target,&up);
-    sceGumMatrixMode(GU_MODEL);
-    sceGumLoadIdentity();
 }
 
 static void drawFrame(void) {
-    if(menu==4) {
-        begin3D();
-        drawGameplayScreen();
-    } else {
-        begin3D();
-        drawMenuScreen();
-    }
+    sceGuStart(GU_DIRECT,displayList);
+    sceGuOffset(2048-(SCREEN_W/2),2048-(SCREEN_H/2));
+    sceGuViewport(2048,2048,SCREEN_W,SCREEN_H);
+    sceGuScissor(0,0,SCREEN_W,SCREEN_H);
+    sceGuEnable(GU_SCISSOR_TEST);
+    sceGuFrontFace(GU_CW);
+    sceGuShadeModel(GU_SMOOTH);
+    sceGuClearColor(0xff252a33);
+    sceGuClearDepth(0);
+    sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
+    if(screen==4) drawGameplay();
+    else drawMenu();
     sceGuFinish();
     sceGuSync(GU_SYNC_FINISH,GU_SYNC_WHAT_DONE);
-
-    /* Keep debug text on the newly selected render buffer, as in PSPSDK samples. */
     sceDisplayWaitVblankStart();
-    renderBuffer=sceGuSwapBuffers();
-    if(menu==3 || menu==4 || menu==5 || menu==6 || menu==7 || messageFrames>0) {
-        pspDebugScreenSetOffset((int)renderBuffer);
-        printMenuText();
+    {
+        void *fb=sceGuSwapBuffers();
+        pspDebugScreenSetOffset((int)fb);
+        if(screen!=0 || noticeFrames>0) printOverlay();
     }
-}
-
-static int exitCallback(int arg1, int arg2, void *common) {
-    (void)arg1;
-    (void)arg2;
-    (void)common;
-    return 0;
-}
-
-static int callbackThread(SceSize args, void *argp) {
-    (void)args;
-    (void)argp;
-    int callbackId=sceKernelCreateCallback("Exit Callback",exitCallback,NULL);
-    if(callbackId>=0) sceKernelRegisterExitCallback(callbackId);
-    sceKernelSleepThreadCB();
-    return 0;
-}
-
-static void setupCallbacks(void) {
-    int threadId=sceKernelCreateThread("Exit Callback Thread",callbackThread,0x11,0x1000,0,0);
-    if(threadId>=0) sceKernelStartThread(threadId,0,0);
 }
 
 int main(void) {
-    setupCallbacks();
+    unsigned int oldButtons=0;
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
     pspDebugScreenInit();
     sceGuInit();
     sceGuStart(GU_DIRECT,displayList);
-    sceGuDrawBuffer(GU_PSM_8888,(void*)0,BUF_WIDTH);
-    sceGuDispBuffer(SCR_WIDTH,SCR_HEIGHT,(void*)0x88000,BUF_WIDTH);
-    sceGuDepthBuffer((void*)0x110000,BUF_WIDTH);
-    sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
-    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
+    sceGuDrawBuffer(GU_PSM_8888,(void*)0,BUF_W);
+    sceGuDispBuffer(SCREEN_W,SCREEN_H,(void*)0x88000,BUF_W);
+    sceGuDepthBuffer((void*)0x110000,BUF_W);
+    sceGuOffset(2048-(SCREEN_W/2),2048-(SCREEN_H/2));
+    sceGuViewport(2048,2048,SCREEN_W,SCREEN_H);
     sceGuFinish(); sceGuSync(0,0);
     sceDisplayWaitVblankStart();
     sceGuDisplay(GU_TRUE);
-    loadAllSaves();
+    loadSaves();
 
     while(1) {
         SceCtrlData pad;
-        int changed=0;
+        unsigned int press;
         sceCtrlReadBufferPositive(&pad,1);
-        unsigned int b=pad.Buttons;
-        static unsigned int old=0;
-        unsigned int press=b & ~old;
-        old=b;
+        press=pad.Buttons & ~oldButtons;
+        oldButtons=pad.Buttons;
 
-        if(menu==4) {
-            /* Fresh minimal gameplay controls: movement only; Circle returns to menu. */
-            if((b & PSP_CTRL_LEFT) || pad.Lx<78) catX-=.06f;
-            if((b & PSP_CTRL_RIGHT) || pad.Lx>177) catX+=.06f;
-            if((b & PSP_CTRL_UP) || pad.Ly<78) catZ-=.06f;
-            if((b & PSP_CTRL_DOWN) || pad.Ly>177) catZ+=.06f;
-            if(catX < -5.0f) catX=-5.0f;
-            if(catX > 5.0f) catX=5.0f;
-            if(catZ < -5.0f) catZ=-5.0f;
-            if(catZ > 3.0f) catZ=3.0f;
-            if(press & PSP_CTRL_CIRCLE) {
-                menu=0;
-                selected=0;
-            }
-        } else {
-            int max=(menu==0)?2:((menu==1 || menu==3)?1:((menu==2)?2:((menu==6)?5:4)));
-            if(press & PSP_CTRL_UP) selected--;
-            if(press & PSP_CTRL_DOWN) selected++;
-            if(selected<0) selected=max;
-            if(selected>max) selected=0;
-
-            if(menu==2 && selected==0 && (press & (PSP_CTRL_LEFT|PSP_CTRL_RIGHT|PSP_CTRL_CROSS)))
-                soundOn=!soundOn;
-            if(menu==2 && selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; }
-            if(menu==2 && selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; }
-
-            if(press & PSP_CTRL_CIRCLE) {
-                if(menu==0) { }
-                else if(menu==3) { menu=2; selected=0; }
-                else if(menu==6) { menu=1; selected=1; }
-                else { menu=0; selected=0; }
-            }
+        if(screen==4) {
+            updateGameplay(&pad,press);
+        } else if(screen==0) {
+            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=2; }
+            if(press & PSP_CTRL_DOWN) { selected++; if(selected>2) selected=0; }
             if(press & PSP_CTRL_CROSS) {
-                if(menu==0) {
-                    if(selected==0) { menu=1; selected=0; }
-                    else if(selected==1) { menu=2; selected=0; }
-                    else sceKernelExitGame();
-                } else if(menu==1) {
-                    if(selected==0) { menu=5; selected=0; }
-                    else { menu=6; selected=1; }
-                } else if(menu==6) {
-                    difficulty=selected;
-                    startNewGame();
-                } else if(menu==7) {
-                    resetGameState(); currentSlot=-1; menu=0; selected=0;
-                } else if(menu==2) {
-                    if(selected==2) { menu=3; selected=0; }
-                } else if(menu==3) {
-                    if(selected==1) resetAllSaves();
-                    menu=2; selected=0;
-                } else if(menu==5) {
-                    loadSaveSlot(selected);
-                }
+                if(selected==0) { screen=1; selected=0; }
+                else if(selected==1) { screen=2; selected=0; }
+                else sceKernelExitGame();
             }
+        } else if(screen==1) {
+            if(press & PSP_CTRL_UP) selected=0;
+            if(press & PSP_CTRL_DOWN) selected=1;
+            if(press & PSP_CTRL_CROSS) {
+                if(selected==0) { screen=3; selected=0; }
+                else { screen=6; selected=1; }
+            }
+            if(press & PSP_CTRL_CIRCLE) { screen=0; selected=0; }
+        } else if(screen==2) {
+            if(press & PSP_CTRL_UP) selected=0;
+            if(press & PSP_CTRL_DOWN) selected=1;
+            if(selected==0 && (press & PSP_CTRL_CROSS)) soundOn=!soundOn;
+            if(selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; }
+            if(selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; }
+            if(press & PSP_CTRL_CIRCLE) { screen=0; selected=1; }
+        } else if(screen==3) {
+            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=SAVE_COUNT-1; }
+            if(press & PSP_CTRL_DOWN) { selected++; if(selected>=SAVE_COUNT) selected=0; }
+            if(press & PSP_CTRL_CROSS) loadSave(selected);
+            if(press & PSP_CTRL_CIRCLE) { screen=1; selected=0; }
+        } else if(screen==6) {
+            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=5; }
+            if(press & PSP_CTRL_DOWN) { selected++; if(selected>5) selected=0; }
+            if(press & PSP_CTRL_CROSS) startGame();
+            if(press & PSP_CTRL_CIRCLE) { screen=1; selected=1; }
+        } else if(screen==5) {
+            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=2; }
+            if(press & PSP_CTRL_DOWN) { selected++; if(selected>2) selected=0; }
+            if(press & PSP_CTRL_CROSS) {
+                if(selected==0) screen=4;
+                else if(selected==1) { hasKey=0; resetPosition(); screen=4; }
+                else { saveProgress(); screen=0; selected=0; }
+            }
+            if((press & PSP_CTRL_START) || (press & PSP_CTRL_CIRCLE)) screen=4;
+        } else if(screen==7 || screen==8) {
+            if(press & PSP_CTRL_CROSS) { screen=0; selected=0; }
         }
-        if(messageFrames>0) messageFrames--;
+
+        if(noticeFrames>0) noticeFrames--;
         drawFrame();
     }
     sceKernelExitGame();

@@ -1,38 +1,35 @@
-# The Cat Is Locked — PSP Beta 0.5.2
+# The Cat Is Locked — PSP Beta 0.7.0
 
-## Refonte des menus
+## Refonte complète
 
-- Le menu principal utilise désormais `assets/Pictures/Menu_principal_asset.png`.
-- **Jouer** ouvre le menu JOUER.
-- Dans le menu JOUER, **Reprise de la partie** ouvre les cinq emplacements de sauvegarde.
-- Dans le menu JOUER, **Commencer l'aventure** démarre directement le gameplay, sans menu intermédiaire.
-- **Paramètres** ouvre le menu correspondant : sons, volume et réinitialisation.
-- La réinitialisation ouvre une confirmation : **Non** revient aux paramètres sans rien effacer ; **Oui** efface les cinq sauvegardes.
-- Les sauvegardes sont stockées dans `ms0:/PSP/SAVEDATA/TCLCK0001/DATA.BIN`. Une nouvelle aventure utilise le prochain emplacement libre ; cinq sauvegardes maximum sont autorisées.
-- Les images PNG sont décodées et converties en textures RGBA8888 par `tools/prepare_assets.py` pendant la compilation. Le script n'a besoin que de Python standard.
+La Beta 0.7.0 repart d'une base de gameplay neuve. L'ancien prototype provisoire et ses anciens indicateurs de menu ne sont plus utilisés.
 
-## Commandes
+### Menu
+- Le menu principal utilise les quatre visuels Menu_principal_V2.
+- La sélection visuelle est intégrée dans les images : aucune flèche ajoutée par le code.
+- Les sous-menus utilisent les images du dossier assets/Pictures/Game Menus.
+- Croix : valider ; Haut/Bas : naviguer ; Rond : retour.
+- Le menu Paramètres permet de modifier le son et le volume (le système audio n'est pas encore branché).
 
-- Croix directionnelle et stick analogique gauche : déplacement du chat.
-- Croix : valider une option.
+### Gameplay jouable
+- Déplacement du chat au stick analogique ou à la croix directionnelle.
+- Une pièce 3D avec murs, porte, mobilier/obstacles et chat composé de volumes 3D.
+- Une clé à trouver dans chaque niveau.
+- La porte reste fermée avant la récupération de la clé ; rejoindre la porte après l'avoir récupérée termine le niveau.
+- Les obstacles changent selon le niveau et bloquent le déplacement.
+- 6 mondes de 10 niveaux, avec sauvegarde automatique de la progression.
+- Difficultés : facile (5 vies), normal (3), difficile (2), extrême (1), hardcore (1 essai) et entraînement (vies illimitées).
+- Pause avec reprise, recommencer le niveau ou retour au menu.
+- Cinq emplacements de sauvegarde sur Memory Stick.
+
+### Commandes
+- Stick analogique ou croix directionnelle : déplacer le chat.
+- Croix : valider dans les menus.
 - Haut/Bas : naviguer.
-- Gauche/Droite : modifier les sons ou le volume dans les paramètres.
-- Rond pendant le jeu : sauvegarder puis revenir au menu principal.
-- Rond dans les menus : retour.
+- Rond : retour dans les menus.
+- START : pause pendant le jeu.
 
-## État du prototype
+### Compilation et validation
+GitHub Actions prépare les textures RGBA8888 à partir des PNG du dépôt, compile avec PSPSDK et publie l'artefact The-Cat-Is-Locked-Beta-0.7.0.
 
-Le gameplay reste un prototype : pièce 3D simple, chat en géométrie primitive, deux clés et quatre pièges. Les sauvegardes conservent la position, la vie, les clés et les pièges déclenchés. La progression de niveau et les effets sonores ne sont pas encore implémentés.
-
-La compilation GitHub Actions valide la construction de l'EBOOT ; une vérification visuelle dans PPSSPP/JSPSP reste nécessaire pour confirmer le rendu sur émulateur.
-
-
-## Beta 0.5.2 — gameplay prototype update
-
-- Difficulty selection is shown before starting a new game: Facile (5 vies), Normal (3), Difficile (2), Extrême (1), Hardcore (1 essai, aucune vie supplémentaire) and Entraînement (vies illimitées).
-- The health bar remains separate from the life count. Traps reduce health; when health reaches zero, the player loses one attempt and returns to the beginning of the current level. Training mode restores the player without consuming a life.
-- The first prototype room uses one key and a locked exit. Reaching the exit after collecting the key completes the level and saves a checkpoint at the next level's start.
-- The prototype advances through 10 numbered levels per world and 6 world counters. At this stage the room geometry is still a placeholder reused for each level; worlds 2–6 do not yet have their final environments or unique mechanics.
-- Hardcore has one total attempt. Losing it clears the active run and returns the next attempt to World 1, Level 1. Other difficulties keep their remaining attempts in the save slot.
-- The main menu artwork and layout are unchanged. Only its arrow indicators now use the two original yellow arrow designs from `assets/Assets/`.
-- Save format version 2 stores world, level, difficulty, lives, health, keys and trap state. Existing version 1 save files are not migrated and will be treated as empty.
+La compilation automatique confirme que l'EBOOT est construit. Le rendu et les sensations de jeu doivent encore être vérifiés sur PPSSPP ou une PSP réelle ; aucune validation d'exécution n'est revendiquée avant ce test.
