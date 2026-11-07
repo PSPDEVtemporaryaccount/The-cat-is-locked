@@ -167,55 +167,49 @@ static void drawTexture(const unsigned char *pixels,int textureHeight,int imageH
     sceGuDisable(GU_TEXTURE_2D);
 }
 
-static void drawRoom(void) {
-    drawCube(0,-.35f,0,10,.35f,10,0xffeeeeee);
-    drawCube(-2.9f,1.7f,-5,4.2f,4,.25f,0xffa64f30);
-    drawCube(2.9f,1.7f,-5,4.2f,4,.25f,0xffa64f30);
-    drawCube(0,3.0f,-5,1.6f,1.4f,.25f,0xffa64f30);
-    drawCube(-5,1.7f,0,.25f,4,10,0xffbd633d);
-    drawCube(5,1.7f,0,.25f,4,10,0xffbd633d);
-    drawCube(0,3.7f,0,10,.2f,10,0xffd98a55);
-    drawCube(-.82f,1.05f,-4.82f,.12f,2.2f,.12f,0xff493023);
-    drawCube(.82f,1.05f,-4.82f,.12f,2.2f,.12f,0xff493023);
-    drawCube(0,2.15f,-4.82f,1.75f,.12f,.12f,0xff493023);
-    drawCube(0,1.05f,-4.88f,1.55f,2.05f,.08f,0xff805233);
-    drawCube(.48f,1.05f,-4.72f,.10f,.16f,.08f,0xffffd36a);
-    drawCube(-2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
-    drawCube(2.7f,2.3f,-4.78f,1.6f,1.0f,.06f,0xff7ac9e8);
-    if(!keyPicked[0]) drawCube(keyPos[0][0],.12f,keyPos[0][1],.22f,.12f,.22f,0xffffd34e);
-    if(!keyPicked[1]) drawCube(keyPos[1][0],.12f,keyPos[1][1],.22f,.12f,.22f,0xffffd34e);
-    drawCube(trapPos[0][0],-.14f,trapPos[0][1],.75f,.07f,.75f,trapTriggered[0]?0xff555555:0xffc83232);
-    drawCube(trapPos[1][0],-.14f,trapPos[1][1],.75f,.07f,.75f,trapTriggered[1]?0xff555555:0xffc83232);
-    drawCube(trapPos[2][0],-.14f,trapPos[2][1],.75f,.07f,.75f,trapTriggered[2]?0xff555555:0xffc83232);
-    drawCube(trapPos[3][0],-.14f,trapPos[3][1],.75f,.07f,.75f,trapTriggered[3]?0xff555555:0xffc83232);
-}
-
-static void drawCat(void) {
-    drawCube(catX,.43f,catZ,.72f,.42f,1.15f,0xff5a514b);
-    drawCube(catX,.72f,catZ-.62f,.52f,.48f,.50f,0xff5a514b);
-    drawCube(catX-.19f,1.02f,catZ-.80f,.13f,.30f,.13f,0xff302b28);
-    drawCube(catX+.19f,1.02f,catZ-.80f,.13f,.30f,.13f,0xff302b28);
-    drawCube(catX-.14f,.78f,catZ-.87f,.06f,.06f,.04f,0xffffd36a);
-    drawCube(catX+.14f,.78f,catZ-.87f,.06f,.06f,.04f,0xffffd36a);
-    drawCube(catX,.63f,catZ-.91f,.07f,.05f,.05f,0xffc98791);
-    drawCube(catX-.24f,.18f,catZ-.40f,.14f,.32f,.16f,0xff302b28);
-    drawCube(catX+.24f,.18f,catZ-.40f,.14f,.32f,.16f,0xff302b28);
-    drawCube(catX-.24f,.18f,catZ+.40f,.14f,.32f,.16f,0xff302b28);
-    drawCube(catX+.24f,.18f,catZ+.40f,.14f,.32f,.16f,0xff302b28);
-    drawCube(catX,.50f,catZ+.70f,.10f,.10f,.45f,0xff5a514b);
-    drawCube(catX,.58f,catZ+1.02f,.09f,.09f,.22f,0xff5a514b);
-}
-
-static void drawGameHud(void) {
+/* Clean gameplay prototype: deliberately 2D first, to establish a reliable visible frame.
+   Menus remain unchanged. This is a scaffold for rebuilding gameplay incrementally. */
+static void drawGameplayScreen(void) {
     begin2D();
-    drawRect(12,12,178,28,0xd9000000);
-    drawRect(18,17,172,23,0xff333333);
-    if(health>0) drawRect(18,17,18+(154.0f*(float)health/100.0f),23,health>50?0xff39c85a:(health>25?0xffffb52e:0xffe83d3d));
-    drawRect(12,34,70,48,0xd9000000);
-    drawRect(20,37,36,45,keysCollected>0?0xffffd34e:0xff555555);
-    drawRect(42,37,58,45,keysCollected>1?0xffffd34e:0xff555555);
-}
 
+    /* Room backdrop and simple perspective-inspired walls/floor */
+    drawRect(0,0,480,272,0xff292f3b);
+    drawRect(0,0,480,145,0xff424d61);
+    drawRect(0,145,480,272,0xff80664f);
+    drawRect(0,145,480,153,0xffb7a18a);
+    drawRect(32,42,448,145,0xff6b7180);
+    drawRect(40,50,440,137,0xff8c929f);
+    drawRect(40,50,440,57,0xffaab0ba);
+    drawRect(40,130,440,137,0xff737987);
+
+    /* Door clearly visible at the far end */
+    drawRect(194,62,286,145,0xff3c2b22);
+    drawRect(201,68,279,145,0xff8b5d3b);
+    drawRect(207,74,273,139,0xffa8784e);
+    drawRect(259,104,267,112,0xffffd36a);
+
+    /* Cat placeholder: a readable stylized sprite, moved by the D-pad/stick */
+    {
+        float sx=catX*34.0f+240.0f;
+        float sy=catZ*20.0f+190.0f;
+        drawRect(sx-18,sy-17,sx+18,sy+12,0xff5a514b);
+        drawRect(sx-13,sy-31,sx+13,sy-8,0xff5a514b);
+        drawTriangle(sx-13,sy-26,sx-8,sy-39,sx-2,sy-26,0xff302b28);
+        drawTriangle(sx+2,sy-26,sx+8,sy-39,sx+13,sy-26,0xff302b28);
+        drawRect(sx-8,sy-21,sx-4,sy-17,0xffffd36a);
+        drawRect(sx+4,sy-21,sx+8,sy-17,0xffffd36a);
+        drawRect(sx-12,sy+9,sx-5,sy+20,0xff302b28);
+        drawRect(sx+5,sy+9,sx+12,sy+20,0xff302b28);
+        drawRect(sx+16,sy-1,sx+29,sy+4,0xff5a514b);
+    }
+
+    /* Minimal HUD; no legacy keys, traps, health, or progression mechanics. */
+    drawRect(8,8,174,32,0xd9000000);
+    drawRect(14,14,168,26,0xffd8d8d8);
+    drawRect(18,18,164,22,0xff4c9c5a);
+    drawRect(8,238,200,264,0xd9000000);
+    drawRect(14,244,194,258,0xff333b48);
+}
 static void drawMenuScreen(void) {
     begin2D();
     if(menu==0) {
@@ -389,10 +383,8 @@ static void printMenuText(void) {
                 pspDebugScreenPrintf("Emplacement vide");
         }
     } else if(menu==4) {
-        pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("MONDE %d - NIVEAU %d",currentWorld,currentLevel);
-        pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches/stick : bouger   Rond : sauvegarder/menu");
-        pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("CLES : %d/1  |  PORTE : %s",keysCollected,keyFound?"OUVERTE":"VERROUILLEE");
-        pspDebugScreenSetXY(1,4); if(trainingMode) pspDebugScreenPrintf("SANTE : %d%% | VIES : INFINIES",health); else pspDebugScreenPrintf("SANTE : %d%% | VIES : %d",health,lives);
+        pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("GAMEPLAY BASE PROPRE - MONDE %d / NIVEAU %d",currentWorld,currentLevel);
+        pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("D-PAD / STICK : DEPLACER LE CHAT | ROND : MENU");
     }
     if(messageFrames>0) {
         pspDebugScreenSetTextColor(0xffffff00);
@@ -428,12 +420,11 @@ static void begin3D(void) {
 }
 
 static void drawFrame(void) {
-    begin3D();
     if(menu==4) {
-        drawRoom();
-        drawCat();
-        drawGameHud();
+        begin3D();
+        drawGameplayScreen();
     } else {
+        begin3D();
         drawMenuScreen();
     }
     sceGuFinish();
@@ -496,35 +487,20 @@ int main(void) {
         old=b;
 
         if(menu==4) {
-            if((b & PSP_CTRL_LEFT) || pad.Lx<78) catX-=.045f;
-            if((b & PSP_CTRL_RIGHT) || pad.Lx>177) catX+=.045f;
-            if((b & PSP_CTRL_UP) || pad.Ly<78) catZ-=.045f;
-            if((b & PSP_CTRL_DOWN) || pad.Ly>177) catZ+=.045f;
-            {
-                int i;
-                for(i=0;i<1;i++) {
-                    float dx=catX-keyPos[i][0], dz=catZ-keyPos[i][1];
-                    if((dx*dx+dz*dz)<0.36f && !keyPicked[i]) {
-                        keyPicked[i]=1; keysCollected++; changed=1;
-                    }
-                }
-                for(i=0;i<4;i++) {
-                    float dx=catX-trapPos[i][0], dz=catZ-trapPos[i][1];
-                    if(!trapTriggered[i] && (dx*dx+dz*dz)<0.30f) {
-                        trapTriggered[i]=1;
-                        health-=25;
-                        if(health<0) health=0;
-                        changed=1;
-                    }
-                }
-                keyFound=(keysCollected>=1);
+            /* Fresh minimal gameplay controls: movement only; Circle returns to menu. */
+            if((b & PSP_CTRL_LEFT) || pad.Lx<78) catX-=.06f;
+            if((b & PSP_CTRL_RIGHT) || pad.Lx>177) catX+=.06f;
+            if((b & PSP_CTRL_UP) || pad.Ly<78) catZ-=.06f;
+            if((b & PSP_CTRL_DOWN) || pad.Ly>177) catZ+=.06f;
+            if(catX < -5.0f) catX=-5.0f;
+            if(catX > 5.0f) catX=5.0f;
+            if(catZ < -5.0f) catZ=-5.0f;
+            if(catZ > 3.0f) catZ=3.0f;
+            if(press & PSP_CTRL_CIRCLE) {
+                menu=0;
+                selected=0;
             }
-            if(health<=0) {
-                if(!trainingMode) lives--;
-                if(!trainingMode && lives<=0) {
-                    menu=7; selected=0; currentWorld=1; currentLevel=1;
-                    if(currentSlot>=0) { memset(&saveSlots[currentSlot],0,sizeof(SaveSlot)); saveAllSaves(); currentSlot=-1; }
-                } else {
+        } else {
                     catX=0.0f; catZ=0.0f; health=100; keysCollected=0; keyFound=0;
                     keyPicked[0]=keyPicked[1]=0;
                     memset(trapTriggered,0,sizeof(trapTriggered));
