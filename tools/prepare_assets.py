@@ -151,12 +151,53 @@ def write_arrow(source_name, output_name):
     canvas = Image.new("RGBA", (128, 64), (0, 0, 0, 0))
     canvas.alpha_composite(image, ((128-image.width)//2, (64-image.height)//2))
     px = canvas.load()
+
+    # JPEG compression creates a gray halo around the black backdrop.
+    # Remove only dark pixels connected to the outer border, so dark details
+    # inside the yellow arrow are preserved. Use 8-neighbour flood fill.
+    from collections import deque
+    visited = bytearray(128 * 64)
+    queue = deque()
+
+    def is_background(x, y):
+        r, g, b, a = px[x, y]
+        return max(r, g, b) <= 105
+
+    for x in range(128):
+        for y in (0, 63):
+            index = y * 128 + x
+            if not visited[index] and is_background(x, y):
+                visited[index] = 1
+                queue.append((x, y))
+    for y in range(64):
+        for x in (0, 127):
+            index = y * 128 + x
+            if not visited[index] and is_background(x, y):
+                visited[index] = 1
+                queue.append((x, y))
+
+    while queue:
+        x, y = queue.popleft()
+        px[x, y] = (0, 0, 0, 0)
+        for ny in range(max(0, y - 1), min(64, y + 2)):
+            for nx in range(max(0, x - 1), min(128, x + 2)):
+                index = ny * 128 + nx
+                if not visited[index] and is_background(nx, ny):
+                    visited[index] = 1
+                    queue.append((nx, ny))
+
+    # Soften the one-pixel JPEG fringe beside the transparent background.
     for y in range(64):
         for x in range(128):
             r, g, b, a = px[x, y]
-            # The supplied JPEGs use a black background; make only near-black pixels transparent.
-            if r < 24 and g < 24 and b < 24:
-                px[x, y] = (0, 0, 0, 0)
+            if a == 0:
+                continue
+            if any(visited[ny * 128 + nx]
+                   for ny in range(max(0, y - 1), min(64, y + 2))
+                   for nx in range(max(0, x - 1), min(128, x + 2))):
+                brightness = max(r, g, b)
+                if brightness < 155:
+                    px[x, y] = (r, g, b, int(255 * (brightness - 105) / 50))
     raw = bytearray()
     for y in range(64):
         for x in range(128):
