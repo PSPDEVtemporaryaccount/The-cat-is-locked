@@ -29,6 +29,8 @@ typedef struct { unsigned int color; float x,y,z; } Vertex3D;
 typedef struct { float u,v; unsigned int color; float x,y,z; } VertexTex2D;
 typedef struct { int valid, world, level, lives, difficulty, hasKey; float catX, catZ, keyX, keyZ; } SaveSlot;
 typedef struct { unsigned int magic, version; SaveSlot slots[SAVE_COUNT]; } SaveFile;
+typedef struct { int valid, world, level, lives, difficulty; } SaveSlotV1;
+typedef struct { unsigned int magic, version; SaveSlotV1 slots[SAVE_COUNT]; } SaveFileV1;
 
 extern unsigned char tex_main_default[];
 extern unsigned char tex_main_play[];
@@ -191,15 +193,43 @@ static void makeSaveDir(void) {
 }
 
 static void loadSaves(void) {
+    struct { unsigned int magic, version; } header;
     SaveFile f;
+    SaveFileV1 old;
     SceUID fd;
+    int i;
     memset(saves,0,sizeof(saves));
     fd=sceIoOpen(SAVE_PATH,PSP_O_RDONLY,0777);
     if(fd<0) return;
-    memset(&f,0,sizeof(f));
-    if(sceIoRead(fd,&f,sizeof(f))==(int)sizeof(f) && f.magic==SAVE_MAGIC && f.version==SAVE_VERSION)
-        memcpy(saves,f.slots,sizeof(saves));
+    memset(&header,0,sizeof(header));
+    if(sceIoRead(fd,&header,sizeof(header))!=(int)sizeof(header) || header.magic!=SAVE_MAGIC) {
+        sceIoClose(fd);
+        return;
+    }
+    if(header.version==SAVE_VERSION) {
+        sceIoLseek(fd,0,PSP_SEEK_SET);
+        memset(&f,0,sizeof(f));
+        if(sceIoRead(fd,&f,sizeof(f))==(int)sizeof(f))
+            memcpy(saves,f.slots,sizeof(saves));
+    } else if(header.version==1) {
+        sceIoLseek(fd,0,PSP_SEEK_SET);
+        memset(&old,0,sizeof(old));
+        if(sceIoRead(fd,&old,sizeof(old))==(int)sizeof(old) && old.magic==SAVE_MAGIC) {
+            for(i=0;i<SAVE_COUNT;i++) {
+                saves[i].valid=old.slots[i].valid;
+                saves[i].world=old.slots[i].world;
+                saves[i].level=old.slots[i].level;
+                saves[i].lives=old.slots[i].lives;
+                saves[i].difficulty=old.slots[i].difficulty;
+                saves[i].hasKey=0;
+                saves[i].catX=0.0f; saves[i].catZ=2.65f;
+                saves[i].keyX=(float)((saves[i].level%3)-1)*1.65f;
+                saves[i].keyZ=-1.25f;
+            }
+        }
+    }
     sceIoClose(fd);
+    if(header.version==1) writeSaves();
 }
 
 static void writeSaves(void) {
