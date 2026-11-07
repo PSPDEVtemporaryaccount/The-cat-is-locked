@@ -2,6 +2,7 @@
 #include <pspdisplay.h>
 #include <pspdebug.h>
 #include <pspctrl.h>
+#include <pspaudio.h>
 #include <pspiofilemgr.h>
 #include <pspgu.h>
 #include <pspgum.h>
@@ -11,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 3);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 4);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
@@ -46,6 +47,8 @@ extern unsigned char tex_play_resume[];
 extern unsigned char tex_start_adventure[];
 extern unsigned char tex_settings[];
 extern unsigned char tex_saves[];
+extern short menu_audio_pcm[];
+extern short menu_audio_pcm_end[];
 
 static unsigned int __attribute__((aligned(16))) displayList[262144];
 static Vertex3D cube[36] __attribute__((aligned(16))) = {
@@ -70,6 +73,57 @@ static char playerPseudo[24]="Chat";
 static float catX=0.0f, catZ=2.65f, keyX=0.0f, keyZ=-1.25f;
 static SaveSlot saves[SAVE_COUNT];
 static char notice[64];
+
+/* PSP background music: decoded mono PCM, streamed through the audio channel. */
+#define MENU_AUDIO_RATE 22050
+#define MENU_AUDIO_CHUNK 2048
+static volatile int menuAudioDesiredGain=0;
+static int menuAudioThreadId=-1;
+static short menuAudioBuffer[MENU_AUDIO_CHUNK] __attribute__((aligned(64)));
+
+static int menuAudioThread(SceSize args, void *argp) {
+    const int totalSamples=(int)(menu_audio_pcm_end-menu_audio_pcm);
+    int position=0;
+    int currentGain=0, rampStart=0, rampTarget=0, rampRemaining=0;
+    (void)args; (void)argp;
+    {
+        int channel=sceAudioChReserve(PSP_AUDIO_NEXT_CHANNEL,MENU_AUDIO_CHUNK,PSP_AUDIO_FORMAT_MONO);
+        if(channel<0) return 0;
+        while(1) {
+            int wanted=menuAudioDesiredGain;
+            int i;
+            if(wanted<0) wanted=0;
+            if(wanted>100) wanted=100;
+            if(wanted!=rampTarget) {
+                rampStart=currentGain;
+                rampTarget=wanted;
+                rampRemaining=MENU_AUDIO_RATE;
+            }
+            for(i=0;i<MENU_AUDIO_CHUNK;i++) {
+                int sampleGain, sample;
+                if(position>=totalSamples) position=0;
+                sample=(int)menu_audio_pcm[position++];
+                if(rampRemaining>0) {
+                    int elapsed=MENU_AUDIO_RATE-rampRemaining;
+                    sampleGain=rampStart+((rampTarget-rampStart)*elapsed)/MENU_AUDIO_RATE;
+                    rampRemaining--;
+                    currentGain=sampleGain;
+                } else {
+                    currentGain=rampTarget;
+                    sampleGain=currentGain;
+                }
+                menuAudioBuffer[i]=(short)((sample*sampleGain)/100);
+            }
+            sceAudioOutputBlocking(channel,PSP_AUDIO_VOLUME_MAX,menuAudioBuffer);
+        }
+    }
+    return 0;
+}
+
+static void startMenuAudio(void) {
+    menuAudioThreadId=sceKernelCreateThread("menu_audio",menuAudioThread,0x18,0x10000,THREAD_ATTR_USER,NULL);
+    if(menuAudioThreadId>=0) sceKernelStartThread(menuAudioThreadId,0,NULL);
+}
 
 static void drawCube(float x,float y,float z,float sx,float sy,float sz,unsigned int color) {
     int i;
@@ -671,6 +725,7 @@ int main(void) {
     sceGuDisplay(GU_TRUE);
     loadSaves();
     loadSettings();
+    startMenuAudio();
 
     while(1) {
         SceCtrlData pad;
@@ -730,6 +785,8 @@ int main(void) {
             if(press & PSP_CTRL_CROSS) { screen=0; selected=0; }
         }
 
+        /* Menus and pause screens have music; active gameplay fades it out in one second. */
+        menuAudioDesiredGain=(screen==4 || !soundOn)?0:volume;
         if(noticeFrames>0) noticeFrames--;
         drawFrame();
     }
