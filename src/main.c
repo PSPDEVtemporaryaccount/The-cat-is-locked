@@ -511,19 +511,21 @@ static void drawMenu(void) {
         drawTexture(t);
     } else if(screen==1) {
         drawTexture(tex_play_menu);
-        /* High-contrast white selection ring around the active option. */
+        /* Selection frame follows the two buttons in Menu_JOUER_V2.png. */
         {
-            float top=(selected==0?92.0f:158.0f);
-            float bottom=top+48.0f;
-            drawRect2D(54.0f,top,426.0f,top+3.0f,0xffffffff);
-            drawRect2D(54.0f,bottom-3.0f,426.0f,bottom,0xffffffff);
-            drawRect2D(54.0f,top,57.0f,bottom,0xffffffff);
-            drawRect2D(423.0f,top,426.0f,bottom,0xffffffff);
+            float top=(selected==0?66.0f:166.0f);
+            float bottom=top+54.0f;
+            drawRect2D(218.0f,top,470.0f,top+3.0f,0xffffffff);
+            drawRect2D(218.0f,bottom-3.0f,470.0f,bottom,0xffffffff);
+            drawRect2D(218.0f,top,221.0f,bottom,0xffffffff);
+            drawRect2D(467.0f,top,470.0f,bottom,0xffffffff);
         }
     } else if(screen==2) {
-        /* Interactive settings overlay; no static screen image. */
+        /* Use the supplied settings artwork as the actual screen background. */
+        drawTexture(tex_settings);
     } else if(screen==3 || screen==9) {
-        /* Save slots and pseudo prompt are rendered with live text only. */
+        /* Keep the matching two-panel game-menu artwork behind live content. */
+        drawTexture(tex_play_menu);
     } else if(screen==6) {
         drawTexture(tex_start_adventure);
     } else {
@@ -547,12 +549,7 @@ static void printOverlay(void) {
     } else if(screen==1) {
         pspDebugScreenSetXY(3,30); pspDebugScreenPrintf("HAUT/BAS : CHOISIR   CROIX : VALIDER   ROND : RETOUR");
     } else if(screen==2) {
-        pspDebugScreenSetXY(10,7); pspDebugScreenPrintf("PARAMETRES");
-        pspDebugScreenSetXY(7,12); pspDebugScreenPrintf("%s SON : %s",selected==0?">":" ",soundOn?"ACTIVE":"COUPE");
-        pspDebugScreenSetXY(7,16); pspDebugScreenPrintf("%s VOLUME : %d%%",selected==1?">":" ",volume);
-        pspDebugScreenSetXY(7,22); pspDebugScreenPrintf("CROIX : ACTIVER / COUPER");
-        pspDebugScreenSetXY(7,24); pspDebugScreenPrintf("GAUCHE/DROITE : REGLER VOLUME");
-        pspDebugScreenSetXY(7,30); pspDebugScreenPrintf("ROND : RETOUR");
+        pspDebugScreenSetXY(3,31); pspDebugScreenPrintf("CROIX : MODIFIER   GAUCHE/DROITE : VOLUME   ROND : RETOUR");
     } else if(screen==3) {
         for(i=0;i<SAVE_COUNT;i++) {
             pspDebugScreenSetXY(4,7+i*4);
@@ -592,19 +589,16 @@ static void printOverlay(void) {
 }
 
 static void drawSettingsWidgets(void) {
-    float fill=2.4f*(float)volume;
+    float fill=1.70f*(float)volume;
     begin2D();
-    if(selected==0) {
-        drawRect2D(58.0f,86.0f,422.0f,89.0f,0xffffffff);
-        drawRect2D(58.0f,111.0f,61.0f,86.0f,0xffffffff);
-        drawRect2D(419.0f,86.0f,422.0f,111.0f,0xffffffff);
-    } else {
-        drawRect2D(58.0f,122.0f,422.0f,125.0f,0xffffffff);
-        drawRect2D(58.0f,122.0f,61.0f,147.0f,0xffffffff);
-        drawRect2D(419.0f,122.0f,422.0f,147.0f,0xffffffff);
-    }
-    drawRect2D(100.0f,158.0f,380.0f,170.0f,0xff555b66);
-    if(fill>0.0f) drawRect2D(100.0f,158.0f,100.0f+fill,170.0f,0xfff0f0f0);
+    /* The supplied artwork already contains the switch and slider tracks.
+       Draw only the live switch knob and the live music-level fill. */
+    drawRect2D(soundOn?431.0f:386.0f,72.0f,
+               soundOn?449.0f:404.0f,103.0f,0xffeeeeee);
+    drawRect2D(279.0f,121.0f,279.0f+fill,137.0f,0xff35b8f4);
+    /* The ambience control mirrors the master volume until separate audio
+       buses are implemented; do not imply that audio playback exists yet. */
+    drawRect2D(213.0f,177.0f,213.0f+2.30f*(float)volume,192.0f,0xffff542d);
 }
 
 static void drawFrame(void) {
