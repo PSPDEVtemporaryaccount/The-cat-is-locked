@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 0);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 3);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
