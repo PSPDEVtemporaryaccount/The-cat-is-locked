@@ -452,6 +452,52 @@ static void updateGameplay(const SceCtrlData *pad,unsigned int press) {
     if(press & PSP_CTRL_START) { screen=5; selected=0; }
 }
 
+static void openPseudoKeyboard(void) {
+    SceUtilityOskParams params;
+    SceUtilityOskData data;
+    unsigned short initial[24], output[24], description[64];
+    const char *label="Entrez votre pseudo";
+    int i, status, shuttingDown=0;
+    memset(&params,0,sizeof(params));
+    memset(&data,0,sizeof(data));
+    memset(initial,0,sizeof(initial));
+    memset(output,0,sizeof(output));
+    memset(description,0,sizeof(description));
+    for(i=0;i<23 && playerPseudo[i];i++) initial[i]=(unsigned short)(unsigned char)playerPseudo[i];
+    for(i=0;label[i] && i<63;i++) description[i]=(unsigned short)(unsigned char)label[i];
+    data.language=PSP_UTILITY_OSK_LANGUAGE_FRENCH;
+    data.lines=1;
+    data.unk_24=1;
+    data.inputtype=PSP_UTILITY_OSK_INPUTTYPE_ALL;
+    data.desc=description;
+    data.intext=initial;
+    data.outtextlength=24;
+    data.outtext=output;
+    data.outtextlimit=20;
+    params.base.size=sizeof(params);
+    params.base.language=PSP_UTILITY_LANGUAGE_DEFAULT;
+    params.base.buttonSwap=PSP_UTILITY_ACCEPT_CROSS;
+    params.base.graphicsThread=17;
+    params.base.accessThread=19;
+    params.base.fontThread=18;
+    params.base.soundThread=16;
+    params.datacount=1;
+    params.data=&data;
+    if(sceUtilityOskInitStart(&params)<0) return;
+    while((status=sceUtilityOskGetStatus())!=PSP_UTILITY_DIALOG_NONE) {
+        if(status==PSP_UTILITY_DIALOG_VISIBLE) sceUtilityOskUpdate(1);
+        else if(status==PSP_UTILITY_DIALOG_QUIT && !shuttingDown) {
+            sceUtilityOskShutdownStart();
+            shuttingDown=1;
+        }
+        sceDisplayWaitVblankStart();
+    }
+    if(data.result==PSP_UTILITY_OSK_RESULT_CHANGED && output[0]) {
+        for(i=0;i<23 && output[i];i++) playerPseudo[i]=(char)(output[i]&0xff);
+        playerPseudo[i]='\\0';
+    }
+}
+
 static void drawMenu(void) {
     begin2D();
     if(screen==0) {
