@@ -51,6 +51,8 @@ extern unsigned char menu_play_resume_texture[];
 extern unsigned char menu_play_new_texture[];
 extern unsigned char menu_settings_texture[];
 extern unsigned char menu_resume_texture[];
+extern unsigned char menu_arrow_left_texture[];
+extern unsigned char menu_arrow_right_texture[];
 
 static unsigned int __attribute__((aligned(16))) displayList[262144];
 static int menu = 0; /* 0 accueil, 1 jouer, 2 paramètres, 3 confirmation, 4 jeu, 5 reprise */
@@ -118,17 +120,23 @@ static void drawTriangle(float x1,float y1,float x2,float y2,float x3,float y3,u
     sceGuDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,3,0,v);
 }
 
-static void drawArrowRight(float x,float y) {
-    unsigned int gold=0xffffd34e;
-    drawRect(x,y+7,x+19,y+11,gold);
-    drawTriangle(x+17,y,x+30,y+9,x+17,y+18,gold);
+static void drawArrowSprite(const unsigned char *pixels,float x,float y) {
+    VertexTex2D v[2];
+    v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
+    v[0].x=x; v[0].y=y; v[0].z=0.0f;
+    v[1].u=128.0f; v[1].v=64.0f; v[1].color=0xffffffff;
+    v[1].x=x+38.0f; v[1].y=y+19.0f; v[1].z=0.0f;
+    sceGuEnable(GU_TEXTURE_2D);
+    sceGuTexMode(GU_PSM_8888,0,0,0);
+    sceGuTexImage(0,128,64,128,pixels);
+    sceGuTexFunc(GU_TFX_MODULATE,GU_TCC_RGBA);
+    sceGuTexFilter(GU_LINEAR,GU_LINEAR);
+    sceGuTexWrap(GU_CLAMP,GU_CLAMP);
+    sceGuDrawArray(GU_SPRITES,GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
+    sceGuDisable(GU_TEXTURE_2D);
 }
-
-static void drawArrowLeft(float x,float y) {
-    unsigned int gold=0xffffd34e;
-    drawRect(x+11,y+7,x+30,y+11,gold);
-    drawTriangle(x+13,y,x,y+9,x+13,y+18,gold);
-}
+static void drawArrowRight(float x,float y) { drawArrowSprite(menu_arrow_right_texture,x,y); }
+static void drawArrowLeft(float x,float y) { drawArrowSprite(menu_arrow_left_texture,x,y); }
 
 static void begin2D(void) {
     sceGuDisable(GU_DEPTH_TEST);
