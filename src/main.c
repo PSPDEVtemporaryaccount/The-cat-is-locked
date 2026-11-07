@@ -20,6 +20,8 @@ PSP_HEAP_SIZE_KB(2048);
 #define BUF_W 512
 #define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK070"
 #define SAVE_PATH SAVE_DIR "/SAVE.DAT"
+#define SETTINGS_PATH SAVE_DIR "/CONFIG.DAT"
+#define SETTINGS_MAGIC 0x54434C53
 #define SAVE_MAGIC 0x54434C37
 #define SAVE_VERSION 3
 #define SAVE_COUNT 5
@@ -284,6 +286,28 @@ static void writeSaves(void) {
     memcpy(f.slots,saves,sizeof(saves));
     fd=sceIoOpen(SAVE_PATH,PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC,0777);
     if(fd>=0) { sceIoWrite(fd,&f,sizeof(f)); sceIoClose(fd); }
+}
+
+static void writeSettings(void) {
+    struct { unsigned int magic; int soundOn, volume; } cfg;
+    SceUID fd;
+    makeSaveDir();
+    cfg.magic=SETTINGS_MAGIC; cfg.soundOn=soundOn; cfg.volume=volume;
+    fd=sceIoOpen(SETTINGS_PATH,PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC,0777);
+    if(fd>=0) { sceIoWrite(fd,&cfg,sizeof(cfg)); sceIoClose(fd); }
+}
+
+static void loadSettings(void) {
+    struct { unsigned int magic; int soundOn, volume; } cfg;
+    SceUID fd=sceIoOpen(SETTINGS_PATH,PSP_O_RDONLY,0777);
+    if(fd<0) return;
+    memset(&cfg,0,sizeof(cfg));
+    if(sceIoRead(fd,&cfg,sizeof(cfg))==(int)sizeof(cfg) && cfg.magic==SETTINGS_MAGIC) {
+        soundOn=cfg.soundOn?1:0;
+        volume=cfg.volume;
+        if(volume<0) volume=0; if(volume>100) volume=100;
+    }
+    sceIoClose(fd);
 }
 
 static void saveProgress(void) {
