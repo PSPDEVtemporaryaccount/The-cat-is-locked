@@ -501,30 +501,6 @@ int main(void) {
                 selected=0;
             }
         } else {
-                    catX=0.0f; catZ=0.0f; health=100; keysCollected=0; keyFound=0;
-                    keyPicked[0]=keyPicked[1]=0;
-                    memset(trapTriggered,0,sizeof(trapTriggered));
-                    storeCurrentSlot();
-                }
-            }
-            if(keyFound && catZ < -3.65f && catX > -0.9f && catX < 0.9f) {
-                currentLevel++;
-                if(currentLevel>10) { currentLevel=1; currentWorld++; }
-                if(currentWorld>6) { currentWorld=6; currentLevel=10; menu=0; selected=0; }
-                catX=0.0f; catZ=0.0f; health=100; keysCollected=0; keyFound=0;
-                keyPicked[0]=keyPicked[1]=0; memset(trapTriggered,0,sizeof(trapTriggered));
-                storeCurrentSlot();
-            }
-            if(changed) storeCurrentSlot();
-            if(press & PSP_CTRL_CIRCLE) {
-                storeCurrentSlot();
-                menu=0; selected=0;
-            }
-            if(catX < -4.0f) catX=-4.0f;
-            if(catX > 4.0f) catX=4.0f;
-            if(catZ < -4.2f) catZ=-4.2f;
-            if(catZ > 3.5f) catZ=3.5f;
-        } else {
             int max=(menu==0)?2:((menu==1 || menu==3)?1:((menu==2)?2:((menu==6)?5:4)));
             if(press & PSP_CTRL_UP) selected--;
             if(press & PSP_CTRL_DOWN) selected++;
