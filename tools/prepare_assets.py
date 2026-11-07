@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""Decode the repository's PNG menu artwork into PSP GU RGBA8888 textures.
-Uses only Python's standard library so the PSP build container needs no Pillow.
-"""
+"""Decode the repository's PNG menu artwork into PSP GU RGBA8888 textures."""
 import os
 import struct
 import zlib
@@ -129,22 +127,18 @@ def write_texture(source_name, output_name, texture_height, masks=()):
     print("%s: %dx%d -> %s (%d bytes)" %
           (source_name, width, height, output_name, len(texture)))
 
-# Main artwork: remove the baked-in arrows so the selection can move.
 write_texture("Menu_principal_asset.png", "menu_main.rgba", 256, [
     ((16, 142, 66, 185), (255, 255, 255, 255)),
     ((174, 142, 224, 185), (255, 255, 255, 255)),
 ])
-# The two JOUER assets are intentional selection states: preserve their arrows.
 write_texture("menu_JOUER_1.png", "menu_play_resume.rgba", 512)
 write_texture("Menu_JOUER_2.png", "menu_play_new.rgba", 512)
-# Remove the baked-in reset arrows; runtime draws them at the active setting.
 write_texture("Menu_PARAMÈTRES.png", "menu_settings.rgba", 512, [
     ((236, 168, 278, 216), (85, 85, 85, 255)),
     ((420, 168, 465, 216), (85, 85, 85, 255)),
 ])
-# Clear sample save names and static arrows; runtime displays real save slots.
 write_texture("Menu_REPRISE DE LA PARTIE.png", "menu_resume.rgba", 512, [
     ((240, 20, 280, 65), (85, 85, 85, 255)),
     ((410, 20, 450, 65), (85, 85, 85, 255)),
-    ((275, 65, 465, 250), (85, 85, 85, 255)),
+    ((275, 30, 465, 250), (85, 85, 85, 255)),
 ])
