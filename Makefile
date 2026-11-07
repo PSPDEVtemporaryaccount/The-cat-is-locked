@@ -1,7 +1,7 @@
 TARGET = EBOOT
 OBJS = src/main.o src/assets.o
 INCDIR =
-CFLAGS = -O2 -G0 -Wall -DPSP_VERSION=\"0.7.0\"
+CFLAGS = -O2 -G0 -Wall -DPSP_VERSION=\"0.7.2\"
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 ASFLAGS = $(CFLAGS)
 LIBS = -lpspgum -lpspgu -lpspdebug -lpspdisplay -lpspge -lpspctrl -lpspkernel -lpsputility -lm
