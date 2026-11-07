@@ -20,7 +20,8 @@ def convert(source_dir, source_name, output_name):
     texture = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
     texture.paste(image, (0, 0))
     target = os.path.join(OUT, output_name)
-    texture.save(target, format="RAW")
+    with open(target, "wb") as output:
+        output.write(texture.tobytes())
     print("%s -> %s (512x512 RGBA)" % (source_name, target))
 
 convert(MAIN, "Menu_principal_V2.png", "main_default.rgba")
