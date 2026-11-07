@@ -192,6 +192,8 @@ static void makeSaveDir(void) {
     sceIoMkdir(SAVE_DIR,0777);
 }
 
+static void writeSaves(void);
+
 static void loadSaves(void) {
     struct { unsigned int magic, version; } header;
     SaveFile f;
