@@ -276,6 +276,8 @@ static void saveProgress(void) {
     saves[currentSlot].lives=lives;
     saves[currentSlot].difficulty=difficulty;
     saves[currentSlot].hasKey=hasKey;
+    saves[currentSlot].health=health;
+    strncpy(saves[currentSlot].pseudo,playerPseudo,sizeof(saves[currentSlot].pseudo)-1);
     saves[currentSlot].catX=catX; saves[currentSlot].catZ=catZ;
     saves[currentSlot].keyX=keyX; saves[currentSlot].keyZ=keyZ;
     writeSaves();
@@ -292,7 +294,7 @@ static void startGame(void) {
     world=1; level=1;
     difficulty=selected;
     lives=(difficulty==0)?5:((difficulty==1)?3:((difficulty==2)?2:((difficulty==3 || difficulty==4)?1:-1)));
-    hasKey=0;
+    hasKey=0; health=100;
     resetPosition();
     keyX=(float)((level%3)-1)*1.65f;
     keyZ=-1.25f;
@@ -312,6 +314,8 @@ static void loadSave(int index) {
     lives=saves[index].lives;
     difficulty=saves[index].difficulty;
     hasKey=saves[index].hasKey;
+    health=saves[index].health;
+    strncpy(playerPseudo,saves[index].pseudo,sizeof(playerPseudo)-1);
     catX=saves[index].catX; catZ=saves[index].catZ;
     keyX=saves[index].keyX; keyZ=saves[index].keyZ;
     screen=4;
