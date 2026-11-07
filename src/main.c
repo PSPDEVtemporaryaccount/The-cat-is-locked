@@ -165,6 +165,9 @@ static void drawGameplay(void) {
         drawCube(1.8f,0.4f,0.2f,0.7f,0.8f,1.2f,0xff80634c);
         drawCube(0.0f,0.35f,1.2f,1.2f,0.7f,0.55f,0xff80634c);
     }
+    if(pattern==0) drawCube(0.0f,0.05f,-2.45f,0.95f,0.10f,0.95f,0xffbd4540);
+    else if(pattern==1) drawCube(2.55f,0.05f,-2.15f,0.95f,0.10f,0.95f,0xffbd4540);
+    else drawCube(-2.65f,0.05f,1.95f,0.95f,0.10f,0.95f,0xffbd4540);
     drawKey();
     drawCat();
 }
@@ -317,6 +320,17 @@ static void updateGameplay(const SceCtrlData *pad,unsigned int press) {
     if(dx!=0.0f && dz!=0.0f) { dx*=0.7071f; dz*=0.7071f; }
     if(!blocked(catX+dx,catZ)) catX+=dx;
     if(!blocked(catX,catZ+dz)) catZ+=dz;
+    {
+        int p=level%3;
+        int onTrap=(p==0 && fabsf(catX)<0.58f && fabsf(catZ+2.45f)<0.58f) ||
+                   (p==1 && fabsf(catX-2.55f)<0.58f && fabsf(catZ+2.15f)<0.58f) ||
+                   (p==2 && fabsf(catX+2.65f)<0.58f && fabsf(catZ-1.95f)<0.58f);
+        if(onTrap) {
+            hasKey=0;
+            loseLife();
+            if(screen!=4) return;
+        }
+    }
     if(!hasKey && fabsf(catX-keyX)<0.52f && fabsf(catZ-keyZ)<0.52f) {
         hasKey=1;
         strncpy(notice,"Cle trouvee ! Va vers la porte.",sizeof(notice)-1);
