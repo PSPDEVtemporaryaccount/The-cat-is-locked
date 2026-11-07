@@ -19,7 +19,7 @@ PSP_HEAP_SIZE_KB(2048);
 #define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK0001"
 #define SAVE_PATH SAVE_DIR "/DATA.BIN"
 #define SAVE_MAGIC 0x54434C4B
-#define SAVE_VERSION 1
+#define SAVE_VERSION 2
 #define SAVE_SLOTS 5
 
 typedef struct { unsigned int color; float x, y, z; } Vertex3D;
@@ -30,6 +30,8 @@ typedef struct {
     int valid;
     int level;
     int world;
+    int lives;
+    int difficulty;
     float catX;
     float catZ;
     int health;
@@ -60,6 +62,11 @@ static int keyFound = 0;
 static int keysCollected = 0;
 static int keyPicked[2] = {0,0};
 static int health = 100;
+static int difficulty = 1;
+static int lives = 3;
+static int currentWorld = 1;
+static int currentLevel = 1;
+static int trainingMode = 0;
 static int trapTriggered[4] = {0,0,0,0};
 static int currentSlot = -1;
 static SaveSlot saveSlots[SAVE_SLOTS];
@@ -277,6 +284,9 @@ static void resetGameState(void) {
     int i;
     catX=0.0f; catZ=0.0f;
     keyFound=0; keysCollected=0; health=100;
+    currentWorld=1; currentLevel=1;
+    trainingMode=(difficulty==5);
+    lives=(difficulty==0)?5:((difficulty==1)?3:((difficulty==2)?2:((difficulty==3)?1:((difficulty==4)?1:-1))));
     keyPicked[0]=0; keyPicked[1]=0;
     for(i=0;i<4;i++) trapTriggered[i]=0;
 }
@@ -286,8 +296,10 @@ static void storeCurrentSlot(void) {
     if(currentSlot<0 || currentSlot>=SAVE_SLOTS) return;
     slot=&saveSlots[currentSlot];
     slot->valid=1;
-    slot->level=1;
-    slot->world=1;
+    slot->level=currentLevel;
+    slot->world=currentWorld;
+    slot->lives=lives;
+    slot->difficulty=difficulty;
     slot->catX=catX;
     slot->catZ=catZ;
     slot->health=health;
@@ -320,6 +332,8 @@ static void loadSaveSlot(int slotIndex) {
     }
     slot=&saveSlots[slotIndex];
     currentSlot=slotIndex;
+    currentLevel=slot->level; currentWorld=slot->world;
+    lives=slot->lives; difficulty=slot->difficulty; trainingMode=(difficulty==5);
     catX=slot->catX; catZ=slot->catZ;
     health=slot->health; keysCollected=slot->keysCollected;
     keyPicked[0]=slot->keyPicked[0]; keyPicked[1]=slot->keyPicked[1];
@@ -337,7 +351,14 @@ static void resetAllSaves(void) {
 static void printMenuText(void) {
     int i;
     pspDebugScreenSetTextColor(0xffffffff);
-    if(menu==3) {
+    if(menu==6) {
+        static const char *names[6]={"FACILE - 5 VIES","NORMAL - 3 VIES","DIFFICILE - 2 VIES","EXTREME - 1 VIE","HARDCORE - 1 ESSAI","ENTRAINEMENT - INFINI"};
+        pspDebugScreenSetXY(10,7); pspDebugScreenPrintf("CHOISIR LA DIFFICULTE");
+        for(i=0;i<6;i++) { pspDebugScreenSetXY(8,11+i*3); pspDebugScreenPrintf("%s %s",selected==i?">":" ",names[i]); }
+    } else if(menu==7) {
+        pspDebugScreenSetXY(18,13); pspDebugScreenPrintf("GAME OVER");
+        pspDebugScreenSetXY(7,17); pspDebugScreenPrintf("CROIX : RETOUR AU MENU PRINCIPAL");
+    } else if(menu==3) {
         pspDebugScreenSetXY(10,10);
         pspDebugScreenPrintf("REINITIALISER TOUTES LES SAUVEGARDES ?");
         pspDebugScreenSetXY(21,17);
@@ -354,10 +375,10 @@ static void printMenuText(void) {
                 pspDebugScreenPrintf("Emplacement vide");
         }
     } else if(menu==4) {
-        pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("NIVEAU 1 - LA PREMIERE PIECE");
+        pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("MONDE %d - NIVEAU %d",currentWorld,currentLevel);
         pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches/stick : bouger   Rond : sauvegarder/menu");
         pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("CLES : %d/2  |  PORTE : %s",keysCollected,keyFound?"OUVERTE":"VERROUILLEE");
-        pspDebugScreenSetXY(1,4); pspDebugScreenPrintf("VIE : %d%%",health);
+        pspDebugScreenSetXY(1,4); pspDebugScreenPrintf("SANTE : %d%% | VIES : %s",health,trainingMode?"INFINIES":(lives==5?"5":(lives==3?"3":(lives==2?"2":"1")));
     }
     if(messageFrames>0) {
         pspDebugScreenSetTextColor(0xffffff00);
@@ -443,7 +464,7 @@ int main(void) {
             if((b & PSP_CTRL_DOWN) || pad.Ly>177) catZ+=.045f;
             {
                 int i;
-                for(i=0;i<2;i++) {
+                for(i=0;i<1;i++) {
                     float dx=catX-keyPos[i][0], dz=catZ-keyPos[i][1];
                     if((dx*dx+dz*dz)<0.36f && !keyPicked[i]) {
                         keyPicked[i]=1; keysCollected++; changed=1;
@@ -458,7 +479,27 @@ int main(void) {
                         changed=1;
                     }
                 }
-                keyFound=(keysCollected>=2);
+                keyFound=(keysCollected>=1);
+            }
+            if(health<=0) {
+                if(!trainingMode) lives--;
+                if(!trainingMode && lives<=0) {
+                    menu=7; selected=0; currentWorld=1; currentLevel=1;
+                    if(currentSlot>=0) { memset(&saveSlots[currentSlot],0,sizeof(SaveSlot)); saveAllSaves(); currentSlot=-1; }
+                } else {
+                    catX=0.0f; catZ=0.0f; health=100; keysCollected=0; keyFound=0;
+                    keyPicked[0]=keyPicked[1]=0;
+                    memset(trapTriggered,0,sizeof(trapTriggered));
+                    storeCurrentSlot();
+                }
+            }
+            if(keyFound && catZ < -3.65f && catX > -0.9f && catX < 0.9f) {
+                currentLevel++;
+                if(currentLevel>10) { currentLevel=1; currentWorld++; }
+                if(currentWorld>6) { currentWorld=6; currentLevel=10; menu=0; selected=0; }
+                catX=0.0f; catZ=0.0f; health=100; keysCollected=0; keyFound=0;
+                keyPicked[0]=keyPicked[1]=0; memset(trapTriggered,0,sizeof(trapTriggered));
+                storeCurrentSlot();
             }
             if(changed) storeCurrentSlot();
             if(press & PSP_CTRL_CIRCLE) {
@@ -470,7 +511,7 @@ int main(void) {
             if(catZ < -4.2f) catZ=-4.2f;
             if(catZ > 3.5f) catZ=3.5f;
         } else {
-            int max=(menu==0)?2:((menu==1 || menu==3)?1:((menu==2)?2:4));
+            int max=(menu==0)?2:((menu==1 || menu==3)?1:((menu==2)?2:((menu==6)?5:4)));
             if(press & PSP_CTRL_UP) selected--;
             if(press & PSP_CTRL_DOWN) selected++;
             if(selected<0) selected=max;
@@ -484,6 +525,7 @@ int main(void) {
             if(press & PSP_CTRL_CIRCLE) {
                 if(menu==0) { }
                 else if(menu==3) { menu=2; selected=0; }
+                else if(menu==6) { menu=1; selected=1; }
                 else { menu=0; selected=0; }
             }
             if(press & PSP_CTRL_CROSS) {
@@ -493,7 +535,12 @@ int main(void) {
                     else sceKernelExitGame();
                 } else if(menu==1) {
                     if(selected==0) { menu=5; selected=0; }
-                    else { startNewGame(); }
+                    else { menu=6; selected=1; }
+                } else if(menu==6) {
+                    difficulty=selected;
+                    startNewGame();
+                } else if(menu==7) {
+                    resetGameState(); currentSlot=-1; menu=0; selected=0;
                 } else if(menu==2) {
                     if(selected==2) { menu=3; selected=0; }
                 } else if(menu==3) {
