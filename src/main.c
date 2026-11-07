@@ -226,7 +226,8 @@ static void drawMenuScreen(void) {
         int i;
         drawTexture(menu_resume_texture,512,272,0.0f);
         for(i=0;i<SAVE_SLOTS;i++) {
-            float y=34.0f+(float)i*43.0f;
+            static const float rowY[SAVE_SLOTS]={33.0f,73.0f,121.0f,169.0f,217.0f};
+            float y=rowY[i];
             if(selected==i) { drawArrowRight(245,y); drawArrowLeft(420,y); }
         }
     }
@@ -345,7 +346,8 @@ static void printMenuText(void) {
         pspDebugScreenPrintf("%s OUI, TOUT EFFACER",selected==1?">":" ");
     } else if(menu==5) {
         for(i=0;i<SAVE_SLOTS;i++) {
-            pspDebugScreenSetXY(29,6+i*5);
+            static const int rowLines[SAVE_SLOTS]={6,11,17,23,29};
+            pspDebugScreenSetXY(35,rowLines[i]);
             if(saveSlots[i].valid)
                 pspDebugScreenPrintf("Niveau %d, Monde %d",saveSlots[i].level,saveSlots[i].world);
             else
