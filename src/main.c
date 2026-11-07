@@ -386,7 +386,7 @@ static void printMenuText(void) {
         pspDebugScreenSetXY(1,1); pspDebugScreenPrintf("MONDE %d - NIVEAU %d",currentWorld,currentLevel);
         pspDebugScreenSetXY(1,2); pspDebugScreenPrintf("Fleches/stick : bouger   Rond : sauvegarder/menu");
         pspDebugScreenSetXY(1,3); pspDebugScreenPrintf("CLES : %d/1  |  PORTE : %s",keysCollected,keyFound?"OUVERTE":"VERROUILLEE");
-        pspDebugScreenSetXY(1,4); pspDebugScreenPrintf("SANTE : %d%% | VIES : %s",health,trainingMode?"INFINIES":(lives==5?"5":(lives==3?"3":(lives==2?"2":"1"))));
+        pspDebugScreenSetXY(1,4); if(trainingMode) pspDebugScreenPrintf("SANTE : %d%% | VIES : INFINIES",health); else pspDebugScreenPrintf("SANTE : %d%% | VIES : %d",health,lives);
     }
     if(messageFrames>0) {
         pspDebugScreenSetTextColor(0xffffff00);
