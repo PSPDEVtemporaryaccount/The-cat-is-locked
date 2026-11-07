@@ -481,7 +481,7 @@ static void openPseudoKeyboard(void) {
     data.outtext=output;
     data.outtextlimit=20;
     params.base.size=sizeof(params);
-    params.base.language=PSP_UTILITY_LANGUAGE_DEFAULT;
+    params.base.language=0;
     params.base.buttonSwap=PSP_UTILITY_ACCEPT_CROSS;
     params.base.graphicsThread=17;
     params.base.accessThread=19;
@@ -500,7 +500,7 @@ static void openPseudoKeyboard(void) {
     }
     if(data.result==PSP_UTILITY_OSK_RESULT_CHANGED && output[0]) {
         for(i=0;i<23 && output[i];i++) playerPseudo[i]=(char)(output[i]&0xff);
-        playerPseudo[i]='\\0';
+        playerPseudo[i]='\0';
     }
 }
 
