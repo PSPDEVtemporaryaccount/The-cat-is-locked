@@ -12,15 +12,15 @@ tex_main_settings:
 .global tex_main_quit
 tex_main_quit:
 .incbin "build/main_quit.rgba"
+.global tex_play_menu
+tex_play_menu:
+.incbin "build/play_menu.rgba"
 .global tex_play_resume
 tex_play_resume:
 .incbin "build/play_resume.rgba"
-.global tex_play_new
-tex_play_new:
-.incbin "build/play_new.rgba"
+.global tex_start_adventure
+tex_start_adventure:
+.incbin "build/start_adventure.rgba"
 .global tex_settings
 tex_settings:
 .incbin "build/settings.rgba"
-.global tex_saves
-tex_saves:
-.incbin "build/saves.rgba"
