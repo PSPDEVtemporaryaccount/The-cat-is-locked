@@ -127,7 +127,7 @@ def write_texture(source_name, output_name, texture_height, masks=()):
     print("%s: %dx%d -> %s (%d bytes)" %
           (source_name, width, height, output_name, len(texture)))
 
-write_texture("Menu_principal_asset.png", "menu_main.rgba", 256, [
+write_texture("Menu_principal_asset.png", "menu_main.rgba", 512, [
     ((16, 142, 66, 185), (255, 255, 255, 255)),
     ((174, 142, 224, 185), (255, 255, 255, 255)),
 ])

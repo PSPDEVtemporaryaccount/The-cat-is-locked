@@ -198,7 +198,7 @@ static void drawGameHud(void) {
 static void drawMenuScreen(void) {
     begin2D();
     if(menu==0) {
-        drawTexture(menu_main_texture,256,256,8.0f);
+        drawTexture(menu_main_texture,512,272,0.0f);
         if(selected==0) { drawArrowRight(20,151); drawArrowLeft(180,151); }
         else if(selected==1) { drawArrowRight(20,190); drawArrowLeft(180,190); }
         else { drawArrowRight(20,229); drawArrowLeft(180,229); }
