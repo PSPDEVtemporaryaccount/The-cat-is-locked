@@ -161,7 +161,7 @@ def write_arrow(source_name, output_name):
 
     def is_background(x, y):
         r, g, b, a = px[x, y]
-        return max(r, g, b) <= 105
+        return max(r, g, b) <= 82
 
     for x in range(128):
         for y in (0, 63):
@@ -196,8 +196,10 @@ def write_arrow(source_name, output_name):
                    for ny in range(max(0, y - 1), min(64, y + 2))
                    for nx in range(max(0, x - 1), min(128, x + 2))):
                 brightness = max(r, g, b)
-                if brightness < 155:
-                    px[x, y] = (r, g, b, int(255 * (brightness - 105) / 50))
+                if brightness < 150:
+                    # Clamp alpha: JPEG fringe may be darker than the threshold.
+                    alpha = max(0, min(255, int((brightness - 82) * 255 / 68)))
+                    px[x, y] = (r, g, b, alpha)
     raw = bytearray()
     for y in range(64):
         for x in range(128):
