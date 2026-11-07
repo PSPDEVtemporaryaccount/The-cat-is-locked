@@ -142,17 +142,23 @@ static void begin3D(void) {
 
 static void drawCat(void) {
     float x=catX, z=catZ;
-    drawCube(x,0.42f,z,0.82f,0.48f,0.58f,0xff554c47);
-    drawCube(x,0.78f,z-0.34f,0.58f,0.55f,0.48f,0xff6d625b);
-    drawCube(x-0.20f,1.13f,z-0.48f,0.19f,0.30f,0.17f,0xff403a36);
-    drawCube(x+0.20f,1.13f,z-0.48f,0.19f,0.30f,0.17f,0xff403a36);
-    drawCube(x-0.13f,0.83f,z-0.59f,0.07f,0.08f,0.035f,0xffffd85c);
-    drawCube(x+0.13f,0.83f,z-0.59f,0.07f,0.08f,0.035f,0xffffd85c);
-    drawCube(x-0.13f,0.83f,z-0.625f,0.025f,0.055f,0.02f,0xff171717);
-    drawCube(x+0.13f,0.83f,z-0.625f,0.025f,0.055f,0.02f,0xff171717);
-    drawCube(x-0.23f,0.18f,z+0.12f,0.16f,0.38f,0.18f,0xff403a36);
-    drawCube(x+0.23f,0.18f,z+0.12f,0.16f,0.38f,0.18f,0xff403a36);
-    drawCube(x,0.45f,z+0.48f,0.13f,0.13f,0.55f,0xff6d625b);
+    /* A high-contrast, unmistakable feline silhouette: torso, head, ears, paws, tail, face. */
+    drawCube(x,0.43f,z,1.00f,0.52f,0.68f,0xffb9b1a7);
+    drawCube(x,0.82f,z-0.42f,0.66f,0.62f,0.54f,0xffd9d0c5);
+    drawCube(x-0.24f,1.17f,z-0.58f,0.20f,0.36f,0.18f,0xff74645a);
+    drawCube(x+0.24f,1.17f,z-0.58f,0.20f,0.36f,0.18f,0xff74645a);
+    drawCube(x-0.15f,0.86f,z-0.70f,0.11f,0.12f,0.05f,0xffcaff62);
+    drawCube(x+0.15f,0.86f,z-0.70f,0.11f,0.12f,0.05f,0xffcaff62);
+    drawCube(x-0.15f,0.86f,z-0.74f,0.035f,0.08f,0.025f,0xff171717);
+    drawCube(x+0.15f,0.86f,z-0.74f,0.035f,0.08f,0.025f,0xff171717);
+    drawCube(x,0.69f,z-0.75f,0.10f,0.07f,0.04f,0xffff8fa3);
+    drawCube(x-0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
+    drawCube(x+0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
+    drawCube(x-0.30f,0.17f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x+0.30f,0.17f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x-0.30f,0.17f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x+0.30f,0.17f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x,0.46f,z+0.62f,0.14f,0.14f,0.76f,0xffd9d0c5);
 }
 
 static void drawKey(void) {
