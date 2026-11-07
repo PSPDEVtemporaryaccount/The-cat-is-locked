@@ -40,7 +40,7 @@ jobs:
       - name: Upload EBOOT.PBP
         uses: actions/upload-artifact@v4
         with:
-          name: The-Cat-Is-Locked-Beta-0.1.4
+          name: The-Cat-Is-Locked-Beta-0.5.2
           path: EBOOT.PBP
           if-no-files-found: error
           retention-days: 30
