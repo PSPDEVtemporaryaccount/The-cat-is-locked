@@ -15,3 +15,10 @@ menu_settings_texture:
 .global menu_resume_texture
 menu_resume_texture:
 .incbin "build/menu_resume.rgba"
+
+.global menu_arrow_left_texture
+menu_arrow_left_texture:
+.incbin "build/arrow_left.rgba"
+.global menu_arrow_right_texture
+menu_arrow_right_texture:
+.incbin "build/arrow_right.rgba"

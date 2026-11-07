@@ -3,6 +3,7 @@
 import os
 import struct
 import zlib
+from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "assets", "Pictures")
@@ -142,3 +143,27 @@ write_texture("Menu_REPRISE DE LA PARTIE.png", "menu_resume.rgba", 512, [
     ((410, 20, 450, 65), (85, 85, 85, 255)),
     ((275, 30, 465, 250), (85, 85, 85, 255)),
 ])
+
+def write_arrow(source_name, output_name):
+    path = os.path.join(ROOT, "assets", "Assets", source_name)
+    image = Image.open(path).convert("RGBA")
+    image.thumbnail((128, 64), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", (128, 64), (0, 0, 0, 0))
+    canvas.alpha_composite(image, ((128-image.width)//2, (64-image.height)//2))
+    px = canvas.load()
+    for y in range(64):
+        for x in range(128):
+            r, g, b, a = px[x, y]
+            # The supplied JPEGs use a black background; make only near-black pixels transparent.
+            if r < 24 and g < 24 and b < 24:
+                px[x, y] = (0, 0, 0, 0)
+    raw = bytearray()
+    for y in range(64):
+        for x in range(128):
+            raw.extend(canvas.getpixel((x, y)))
+    with open(os.path.join(OUT, output_name), "wb") as f:
+        f.write(raw)
+    print("%s -> %s (128x64 RGBA)" % (source_name, output_name))
+
+write_arrow("sketch1794015838541.jpeg", "arrow_left.rgba")
+write_arrow("sketch1794015872311.jpeg", "arrow_right.rgba")
