@@ -1,8 +1,8 @@
-# The Cat Is Locked — PSP Beta 0.7.1
+# The Cat Is Locked — PSP Beta 0.7.2
 
 ## Refonte complète
 
-La Beta 0.7.1 repart d'une base de gameplay neuve. L'ancien prototype provisoire et ses anciens indicateurs de menu ne sont plus utilisés.
+La Beta 0.7.2 repart d'une base de gameplay neuve. L'ancien prototype provisoire et ses anciens indicateurs de menu ne sont plus utilisés.
 
 ### Menu
 - Les visuels récents V2 sont intégrés aux écrans principaux, Jouer, Reprendre et Paramètres.
