@@ -1,4 +1,5 @@
 #include <pspkernel.h>
+#include <psploadexec.h>
 #include <pspdisplay.h>
 #include <pspdebug.h>
 #include <pspctrl.h>
@@ -437,15 +438,39 @@ static void drawFrame(void) {
     }
     sceGuFinish();
     sceGuSync(GU_SYNC_FINISH,GU_SYNC_WHAT_DONE);
+
+    /* Keep debug text on the newly selected render buffer, as in PSPSDK samples. */
+    sceDisplayWaitVblankStart();
+    renderBuffer=sceGuSwapBuffers();
     if(menu==3 || menu==4 || menu==5 || menu==6 || menu==7 || messageFrames>0) {
         pspDebugScreenSetOffset((int)renderBuffer);
         printMenuText();
     }
-    sceDisplayWaitVblankStart();
-    renderBuffer=sceGuSwapBuffers();
+}
+
+static int exitCallback(int arg1, int arg2, void *common) {
+    (void)arg1;
+    (void)arg2;
+    (void)common;
+    return 0;
+}
+
+static int callbackThread(SceSize args, void *argp) {
+    (void)args;
+    (void)argp;
+    int callbackId=sceKernelCreateCallback("Exit Callback",exitCallback,NULL);
+    if(callbackId>=0) sceKernelRegisterExitCallback(callbackId);
+    sceKernelSleepThreadCB();
+    return 0;
+}
+
+static void setupCallbacks(void) {
+    int threadId=sceKernelCreateThread("Exit Callback Thread",callbackThread,0x11,0x1000,0,0);
+    if(threadId>=0) sceKernelStartThread(threadId,0,0);
 }
 
 int main(void) {
+    setupCallbacks();
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
     pspDebugScreenInit();
