@@ -505,10 +505,19 @@ static void drawMenu(void) {
         drawTexture(t);
     } else if(screen==1) {
         drawTexture(tex_play_menu);
+        /* High-contrast white selection ring around the active option. */
+        {
+            float top=(selected==0?92.0f:158.0f);
+            float bottom=top+48.0f;
+            drawRect2D(54.0f,top,426.0f,top+3.0f,0xffffffff);
+            drawRect2D(54.0f,bottom-3.0f,426.0f,bottom,0xffffffff);
+            drawRect2D(54.0f,top,57.0f,bottom,0xffffffff);
+            drawRect2D(423.0f,top,426.0f,bottom,0xffffffff);
+        }
     } else if(screen==2) {
         /* Interactive settings overlay; no static screen image. */
-    } else if(screen==3) {
-        /* Real save slots are rendered below; do not display sample saves. */
+    } else if(screen==3 || screen==9) {
+        /* Save slots and pseudo prompt are rendered with live text only. */
     } else if(screen==6) {
         drawTexture(tex_start_adventure);
     } else {
