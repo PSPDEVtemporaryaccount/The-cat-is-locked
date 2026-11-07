@@ -116,13 +116,43 @@ static void drawRect2D(float x1,float y1,float x2,float y2,unsigned int color) {
     sceGuDrawArray(GU_SPRITES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
 }
 
+static void drawDigit7Seg(float x,float y,int digit,unsigned int color) {
+    static const unsigned char mask[10]={0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f};
+    static const unsigned char bits[7]={1,2,4,8,16,32,64};
+    int i;
+    const float w=5.0f,h=2.0f;
+    const float seg[7][4]={{0,0,8,2},{8,0,10,7},{8,7,10,14},{0,14,8,16},{-2,7,0,14},{-2,0,0,7},{0,7,8,9}};
+    if(digit<0 || digit>9) return;
+    for(i=0;i<7;i++) if(mask[digit]&bits[i])
+        drawRect2D(x+seg[i][0],y+seg[i][1],x+seg[i][2],y+seg[i][3],color);
+    (void)w; (void)h;
+}
+
 static void drawHealthBar(void) {
-    float width=(health<0?0.0f:(health>100?100.0f:(float)health))*1.40f;
-    unsigned int fill=(health>60?0xff35c759:(health>30?0xffffb52e:0xffe5484d));
+    float width=(health<0?0.0f:(health>100?100.0f:(float)health))*2.05f;
+    unsigned int fill=(health>60?0xff79d653:(health>30?0xffffb52e:0xffe5484d));
+    int shownLives=(lives<0?9:(lives>9?9:lives));
     begin2D();
-    drawRect2D(12.0f,10.0f,156.0f,24.0f,0xff17191e);
-    drawRect2D(14.0f,12.0f,154.0f,22.0f,0xff4b4b52);
-    if(width>0.0f) drawRect2D(14.0f,12.0f,14.0f+width,22.0f,fill);
+    /* HUD follows the supplied Gameplay.png layout: lives, health, key. */
+    drawRect2D(5.0f,5.0f,39.0f,37.0f,0xfff5f5f5);
+    drawRect2D(8.0f,7.0f,22.0f,21.0f,0xfff04442);
+    drawRect2D(21.0f,7.0f,35.0f,21.0f,0xfff04442);
+    drawRect2D(11.0f,17.0f,32.0f,28.0f,0xfff04442);
+    drawRect2D(16.0f,26.0f,27.0f,34.0f,0xfff04442);
+    drawDigit7Seg(18.0f,10.0f,shownLives,0xffffffff);
+
+    drawRect2D(51.0f,7.0f,261.0f,30.0f,0xfff5f5f5);
+    drawRect2D(54.0f,10.0f,258.0f,27.0f,0xff343434);
+    if(width>0.0f) drawRect2D(54.0f,10.0f,54.0f+width,27.0f,fill);
+
+    drawRect2D(360.0f,5.0f,473.0f,46.0f,0xff626262);
+    /* Gold key: round head, shaft and two teeth. */
+    drawRect2D(374.0f,15.0f,391.0f,32.0f,0xffffd43b);
+    drawRect2D(378.0f,19.0f,387.0f,28.0f,0xff8d6b12);
+    drawRect2D(388.0f,25.0f,426.0f,31.0f,0xffffd43b);
+    drawRect2D(416.0f,30.0f,422.0f,38.0f,0xffffd43b);
+    drawDigit7Seg(436.0f,14.0f,hasKey?1:0,0xffffffff);
+    drawRect2D(450.0f,14.0f,453.0f,30.0f,0xffffffff);
 }
 
 static void begin3D(void) {
