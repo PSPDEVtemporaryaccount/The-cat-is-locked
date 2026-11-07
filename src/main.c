@@ -79,7 +79,7 @@ static void *renderBuffer = (void*)0;
 static const float keyPos[2][2] = {{-2.5f,-2.2f},{2.5f,-2.2f}};
 static const float trapPos[4][2] = {{-2.0f,0.6f},{-0.7f,1.6f},{0.8f,0.6f},{2.0f,1.6f}};
 
-static Vertex3D cube[36] = {
+static Vertex3D cube[36] __attribute__((aligned(16))) = {
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,-.5f,-.5f},{0xffffffff,.5f,.5f,-.5f},
  {0xffffffff,-.5f,-.5f,-.5f},{0xffffffff,.5f,.5f,-.5f},{0xffffffff,-.5f,.5f,-.5f},
  {0xffffffff,.5f,-.5f,.5f},{0xffffffff,-.5f,-.5f,.5f},{0xffffffff,-.5f,.5f,.5f},
@@ -97,6 +97,7 @@ static Vertex3D cube[36] = {
 static void drawCube(float x,float y,float z,float sx,float sy,float sz,unsigned int color) {
     int i;
     for(i=0;i<36;i++) cube[i].color=color;
+    sceKernelDcacheWritebackRange(cube,sizeof(cube));
     sceGumPushMatrix();
     ScePspFVector3 p={x,y,z}, s={sx,sy,sz};
     sceGumTranslate(&p);
@@ -106,26 +107,29 @@ static void drawCube(float x,float y,float z,float sx,float sy,float sz,unsigned
 }
 
 static void drawRect(float x1,float y1,float x2,float y2,unsigned int color) {
-    Vertex2D v[2];
+    Vertex2D v[2] __attribute__((aligned(16)));
     v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
     v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
+    sceKernelDcacheWritebackRange(v,sizeof(v));
     sceGuDrawArray(GU_SPRITES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
 }
 
 static void drawTriangle(float x1,float y1,float x2,float y2,float x3,float y3,unsigned int color) {
-    Vertex2D v[3];
+    Vertex2D v[3] __attribute__((aligned(16)));
     v[0].color=color; v[0].x=x1; v[0].y=y1; v[0].z=0.0f;
     v[1].color=color; v[1].x=x2; v[1].y=y2; v[1].z=0.0f;
     v[2].color=color; v[2].x=x3; v[2].y=y3; v[2].z=0.0f;
+    sceKernelDcacheWritebackRange(v,sizeof(v));
     sceGuDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,3,0,v);
 }
 
 static void drawArrowSprite(const unsigned char *pixels,float x,float y) {
-    VertexTex2D v[2];
+    VertexTex2D v[2] __attribute__((aligned(16)));
     v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
     v[0].x=x; v[0].y=y; v[0].z=0.0f;
     v[1].u=128.0f; v[1].v=64.0f; v[1].color=0xffffffff;
     v[1].x=x+38.0f; v[1].y=y+19.0f; v[1].z=0.0f;
+    sceKernelDcacheWritebackRange(v,sizeof(v));
     sceGuEnable(GU_TEXTURE_2D);
     sceGuTexMode(GU_PSM_8888,0,0,0);
     sceGuTexImage(0,128,64,128,pixels);
@@ -146,11 +150,12 @@ static void begin2D(void) {
 }
 
 static void drawTexture(const unsigned char *pixels,int textureHeight,int imageHeight,float y) {
-    VertexTex2D v[2];
+    VertexTex2D v[2] __attribute__((aligned(16)));
     v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
     v[0].x=0.0f; v[0].y=y; v[0].z=0.0f;
     v[1].u=480.0f; v[1].v=(float)imageHeight; v[1].color=0xffffffff;
     v[1].x=480.0f; v[1].y=y+(float)imageHeight; v[1].z=0.0f;
+    sceKernelDcacheWritebackRange(v,sizeof(v));
     sceGuEnable(GU_TEXTURE_2D);
     sceGuTexMode(GU_PSM_8888,0,0,0);
     sceGuTexImage(0,512,textureHeight,512,pixels);
@@ -431,7 +436,7 @@ static void drawFrame(void) {
         drawMenuScreen();
     }
     sceGuFinish();
-    sceGuSync(0,0);
+    sceGuSync(GU_SYNC_FINISH,GU_SYNC_WHAT_DONE);
     if(menu==3 || menu==4 || menu==5 || menu==6 || menu==7 || messageFrames>0) {
         pspDebugScreenSetOffset((int)renderBuffer);
         printMenuText();
