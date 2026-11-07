@@ -591,6 +591,22 @@ static void printOverlay(void) {
     }
 }
 
+static void drawSettingsWidgets(void) {
+    float fill=2.4f*(float)volume;
+    begin2D();
+    if(selected==0) {
+        drawRect2D(58.0f,86.0f,422.0f,89.0f,0xffffffff);
+        drawRect2D(58.0f,111.0f,61.0f,86.0f,0xffffffff);
+        drawRect2D(419.0f,86.0f,422.0f,111.0f,0xffffffff);
+    } else {
+        drawRect2D(58.0f,122.0f,422.0f,125.0f,0xffffffff);
+        drawRect2D(58.0f,122.0f,61.0f,147.0f,0xffffffff);
+        drawRect2D(419.0f,122.0f,422.0f,147.0f,0xffffffff);
+    }
+    drawRect2D(100.0f,158.0f,380.0f,170.0f,0xff555b66);
+    if(fill>0.0f) drawRect2D(100.0f,158.0f,100.0f+fill,170.0f,0xfff0f0f0);
+}
+
 static void drawFrame(void) {
     sceGuStart(GU_DIRECT,displayList);
     sceGuOffset(2048-(SCREEN_W/2),2048-(SCREEN_H/2));
@@ -603,7 +619,7 @@ static void drawFrame(void) {
     sceGuClearDepth(0);
     sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
     if(screen==4) { drawGameplay(); drawHealthBar(); }
-    else drawMenu();
+    else { drawMenu(); if(screen==2) drawSettingsWidgets(); }
     sceGuFinish();
     sceGuSync(GU_SYNC_FINISH,GU_SYNC_WHAT_DONE);
     sceDisplayWaitVblankStart();
