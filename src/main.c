@@ -367,6 +367,31 @@ static void printMenuText(void) {
     }
 }
 
+static void begin3D(void) {
+    sceGuStart(GU_DIRECT,displayList);
+    sceGuOffset(2048-(SCR_WIDTH/2),2048-(SCR_HEIGHT/2));
+    sceGuViewport(2048,2048,SCR_WIDTH,SCR_HEIGHT);
+    sceGuDepthRange(65535,0);
+    sceGuScissor(0,0,SCR_WIDTH,SCR_HEIGHT);
+    sceGuEnable(GU_SCISSOR_TEST);
+    sceGuEnable(GU_DEPTH_TEST);
+    sceGuDepthFunc(GU_GEQUAL);
+    sceGuFrontFace(GU_CW);
+    sceGuShadeModel(GU_SMOOTH);
+    sceGuClearColor(0xff000000);
+    sceGuClearDepth(0);
+    sceGuClear(GU_COLOR_BUFFER_BIT|GU_DEPTH_BUFFER_BIT);
+    sceGumMatrixMode(GU_PROJECTION);
+    sceGumLoadIdentity();
+    sceGumPerspective(48.0f,16.0f/9.0f,0.5f,100.0f);
+    sceGumMatrixMode(GU_VIEW);
+    sceGumLoadIdentity();
+    ScePspFVector3 eye={0.0f,5.5f,10.0f}, target={0.0f,0.5f,0.0f}, up={0.0f,1.0f,0.0f};
+    sceGumLookAt(&eye,&target,&up);
+    sceGumMatrixMode(GU_MODEL);
+    sceGumLoadIdentity();
+}
+
 static void drawFrame(void) {
     begin3D();
     if(menu==4) {
