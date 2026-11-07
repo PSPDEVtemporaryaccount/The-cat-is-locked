@@ -5,6 +5,7 @@
 #include <pspiofilemgr.h>
 #include <pspgu.h>
 #include <pspgum.h>
+#include <psputility.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -20,15 +21,17 @@ PSP_HEAP_SIZE_KB(2048);
 #define SAVE_DIR "ms0:/PSP/SAVEDATA/TCLCK070"
 #define SAVE_PATH SAVE_DIR "/SAVE.DAT"
 #define SAVE_MAGIC 0x54434C37
-#define SAVE_VERSION 2
+#define SAVE_VERSION 3
 #define SAVE_COUNT 5
 #define WORLD_COUNT 6
 #define LEVELS_PER_WORLD 10
 
 typedef struct { unsigned int color; float x,y,z; } Vertex3D;
 typedef struct { float u,v; unsigned int color; float x,y,z; } VertexTex2D;
-typedef struct { int valid, world, level, lives, difficulty, hasKey; float catX, catZ, keyX, keyZ; } SaveSlot;
+typedef struct { int valid, world, level, lives, difficulty, hasKey, health; float catX, catZ, keyX, keyZ; char pseudo[24]; } SaveSlot;
 typedef struct { unsigned int magic, version; SaveSlot slots[SAVE_COUNT]; } SaveFile;
+typedef struct { int valid, world, level, lives, difficulty, hasKey; float catX, catZ, keyX, keyZ; } SaveSlotV2;
+typedef struct { unsigned int magic, version; SaveSlotV2 slots[SAVE_COUNT]; } SaveFileV2;
 typedef struct { int valid, world, level, lives, difficulty; } SaveSlotV1;
 typedef struct { unsigned int magic, version; SaveSlotV1 slots[SAVE_COUNT]; } SaveFileV1;
 
@@ -60,7 +63,8 @@ static Vertex3D cube[36] __attribute__((aligned(16))) = {
 
 static int screen=0; /* accueil, jouer, paramètres, sauvegardes, jeu, pause, difficulté, défaite, victoire */
 static int selected=0, difficulty=1, lives=3, world=1, level=1, hasKey=0, currentSlot=-1;
-static int soundOn=1, volume=70, noticeFrames=0;
+static int soundOn=1, volume=70, noticeFrames=0, health=100;
+static char playerPseudo[24]="Chat";
 static float catX=0.0f, catZ=2.65f, keyX=0.0f, keyZ=-1.25f;
 static SaveSlot saves[SAVE_COUNT];
 static char notice[64];
