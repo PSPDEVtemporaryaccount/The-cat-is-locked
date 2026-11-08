@@ -12,16 +12,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install image decoder
-        run: sudo apt-get update && sudo apt-get install -y python3-pil ffmpeg
-      - name: Prepare menu textures
+      - name: Install audio decoder
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Prepare menu audio
         run: python3 tools/prepare_assets.py
-      - name: Upload menu textures
+      - name: Upload menu audio
         uses: actions/upload-artifact@v4
         with:
-          name: menu-textures
+          name: menu-audio
           path: |
-            build/*.rgba
             build/menu_audio.pcm
           if-no-files-found: error
           retention-days: 1
@@ -34,10 +33,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Download menu textures
+      - name: Download menu audio
         uses: actions/download-artifact@v4
         with:
-          name: menu-textures
+          name: menu-audio
           path: build
       - name: Build PSP EBOOT
         run: make clean && make
