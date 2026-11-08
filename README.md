@@ -1,36 +1,27 @@
 # The Cat Is Locked — PSP Beta 0.8.0
 
-## Refonte complète
+## Travail de refonte — état de cette build
 
-La Beta 0.8.0 repart d'une base de gameplay neuve. L'ancien prototype provisoire et ses anciens indicateurs de menu ne sont plus utilisés.
+La Beta 0.8.0 commence à retirer les menus constitués d'images. Les PNG de référence restent dans `assets/Pictures`, mais ils ne sont plus embarqués dans l'EBOOT ni affichés comme écrans de menu.
 
-### Menu
-- Les visuels récents V2 sont intégrés aux écrans principaux, Jouer, Reprendre et Paramètres.
-- Le menu principal utilise les quatre visuels Menu_principal_V2.
-- La sélection visuelle est intégrée dans les images : aucune flèche ajoutée par le code.
-- Les sous-menus utilisent les images du dossier assets/Pictures/Game Menus.
-- Croix : valider ; Haut/Bas : naviguer ; Rond : retour.
-- Le menu Paramètres permet de couper le son et de régler le volume de la musique des menus. Le fondu audio est géré par le moteur PSP.
+### Interface native
+- Écrans et panneaux de menu dessinés en primitives GU et texte PSP.
+- Sélection de menu avec Croix et navigation Haut/Bas.
+- Paramètres : son, volume musique, volume ambiance et remise à zéro (les commandes de réglage sont traitées dans la boucle menu).
+- Les PNG dans `assets/Pictures` restent des références artistiques, pas des textures de menus dans cette build.
 
-### Gameplay jouable
-- Déplacement du chat au stick analogique ou à la croix directionnelle.
-- Une pièce 3D avec murs, porte, mobilier/obstacles et chat composé de volumes 3D.
-- Une clé à trouver dans chaque niveau.
-- La porte reste fermée avant la récupération de la clé ; rejoindre la porte après l'avoir récupérée termine le niveau.
-- Les obstacles changent selon le niveau et bloquent le déplacement.
-- 6 mondes de 10 niveaux, avec sauvegarde automatique de la progression.
-- Difficultés : facile (5 vies), normal (3), difficile (2), extrême (1), hardcore (1 essai) et entraînement (vies illimitées).
-- Pause avec reprise ou recommencer le niveau. Le retour au menu principal est désactivé.
-- Cinq emplacements de sauvegarde sur Memory Stick. Les sauvegardes Beta 0.8.0 sont migrées vers le nouveau format.
+### Chat et gameplay
+- Le chat est maintenant composé de maillages ellipsoïdes polygonaux arrondis plutôt que d'un assemblage de cubes.
+- Le niveau reste un prototype géométrique 3D : murs, porte, obstacles et mobiliers utilisent encore des primitives simples. Un modèle félin détaillé, des animations complètes et une finition de niveau commerciale ne sont pas encore présents.
+- Déplacement au stick analogique ou à la croix directionnelle.
+- Clé, porte, pièges, progression, sauvegardes et pause restent dans la base existante.
 
-### Commandes
-- Stick analogique ou croix directionnelle : déplacer le chat.
-- Croix : valider dans les menus.
-- Haut/Bas : naviguer.
-- Rond : retour dans les menus.
-- START : pause pendant le jeu.
+### Audio
+- La musique des menus est décodée par FFmpeg en PCM mono à 44 100 Hz.
+- Le flux audio PSP et la durée du fondu utilisent 44 100 échantillons/seconde, pour éviter le problème de lecture accélérée lié à un taux d'échantillonnage incorrect.
+- La vitesse audio doit encore être confirmée par un essai d'exécution PPSSPP ou sur PSP réelle.
 
 ### Compilation et validation
-GitHub Actions prépare les textures RGBA8888 à partir des PNG du dépôt, compile avec PSPSDK et publie l'artefact The-Cat-Is-Locked-Beta-0.8.0.
+GitHub Actions prépare uniquement le PCM audio, compile avec PSPSDK et publie l'artefact `The-Cat-Is-Locked-Beta-0.8.0`.
 
-La compilation automatique confirme que l'EBOOT est construit. Le rendu et les sensations de jeu doivent encore être vérifiés sur PPSSPP ou une PSP réelle ; aucune validation d'exécution n'est revendiquée avant ce test.
+La réussite de la compilation ne vaut pas validation du rendu ni du gameplay. Aucun test runtime PPSSPP/PSP n'est revendiqué tant qu'un émulateur n'a pas réellement lancé l'EBOOT.
