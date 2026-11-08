@@ -638,6 +638,7 @@ static void printOverlay(void) {
         pspDebugScreenSetXY(8,30); pspDebugScreenPrintf("GAUCHE/DROITE : REGLER  CROIX : MODIFIER  ROND : RETOUR");
     } else if(screen==3) {
         pspDebugScreenSetXY(8,4); pspDebugScreenPrintf("SAUVEGARDES");
+    }
     if(screen==4) {
         pspDebugScreenSetXY(1,1);
         pspDebugScreenPrintf("MONDE %d/%d  -  NIVEAU %02d/%02d",world,WORLD_COUNT,level,LEVELS_PER_WORLD);
