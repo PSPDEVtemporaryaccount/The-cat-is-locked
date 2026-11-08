@@ -30,7 +30,6 @@ PSP_HEAP_SIZE_KB(2048);
 #define LEVELS_PER_WORLD 10
 
 typedef struct { unsigned int color; float x,y,z; } Vertex3D;
-typedef struct { float u,v; unsigned int color; float x,y,z; } VertexTex2D;
 typedef struct { int valid, world, level, lives, difficulty, hasKey, health; float catX, catZ, keyX, keyZ; char pseudo[24]; } SaveSlot;
 typedef struct { unsigned int magic, version; SaveSlot slots[SAVE_COUNT]; } SaveFile;
 typedef struct { int valid, world, level, lives, difficulty, hasKey; float catX, catZ, keyX, keyZ; } SaveSlotV2;
@@ -129,22 +128,6 @@ static void drawCube(float x,float y,float z,float sx,float sy,float sz,unsigned
     sceGumPopMatrix();
 }
 
-static void drawTexture(const unsigned char *pixels) {
-    VertexTex2D v[2] __attribute__((aligned(16)));
-    v[0].u=0.0f; v[0].v=0.0f; v[0].color=0xffffffff;
-    v[0].x=0.0f; v[0].y=0.0f; v[0].z=0.0f;
-    v[1].u=480.0f; v[1].v=272.0f; v[1].color=0xffffffff;
-    v[1].x=480.0f; v[1].y=272.0f; v[1].z=0.0f;
-    sceKernelDcacheWritebackRange(v,sizeof(v));
-    sceGuEnable(GU_TEXTURE_2D);
-    sceGuTexMode(GU_PSM_8888,0,0,0);
-    sceGuTexImage(0,512,512,512,pixels);
-    sceGuTexFunc(GU_TFX_REPLACE,GU_TCC_RGBA);
-    sceGuTexFilter(GU_LINEAR,GU_LINEAR);
-    sceGuTexWrap(GU_CLAMP,GU_CLAMP);
-    sceGuDrawArray(GU_SPRITES,GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_2D,2,0,v);
-    sceGuDisable(GU_TEXTURE_2D);
-}
 
 static void begin2D(void) {
     sceGuDisable(GU_DEPTH_TEST);
