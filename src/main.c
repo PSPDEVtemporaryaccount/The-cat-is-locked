@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 5);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 6);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
@@ -238,10 +238,10 @@ static void drawCat(void) {
     drawCube(x,0.69f,z-0.75f,0.10f,0.07f,0.04f,0xffff8fa3);
     drawCube(x-0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
     drawCube(x+0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
-    drawCube(x-0.30f,0.17f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x+0.30f,0.17f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x-0.30f,0.17f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x+0.30f,0.17f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x-0.30f,0.20f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x+0.30f,0.20f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x-0.30f,0.20f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
+    drawCube(x+0.30f,0.20f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
     drawCube(x,0.46f,z+0.62f,0.14f,0.14f,0.76f,0xffd9d0c5);
 }
 
@@ -395,7 +395,8 @@ static void loadSettings(void) {
     if(sceIoRead(fd,&cfg,sizeof(cfg))==(int)sizeof(cfg) && cfg.magic==SETTINGS_MAGIC) {
         soundOn=cfg.soundOn?1:0;
         volume=cfg.volume;
-        if(volume<0) volume=0; if(volume>100) volume=100;
+        if(volume<0) volume=0;
+        if(volume>100) volume=100;
     }
     sceIoClose(fd);
 }
@@ -409,7 +410,8 @@ static void saveProgress(void) {
     saves[currentSlot].difficulty=difficulty;
     saves[currentSlot].hasKey=hasKey;
     saves[currentSlot].health=health;
-    strncpy(saves[currentSlot].pseudo,playerPseudo,sizeof(saves[currentSlot].pseudo)-1);
+    memcpy(saves[currentSlot].pseudo,playerPseudo,sizeof(saves[currentSlot].pseudo));
+    saves[currentSlot].pseudo[sizeof(saves[currentSlot].pseudo)-1]=0;
     saves[currentSlot].catX=catX; saves[currentSlot].catZ=catZ;
     saves[currentSlot].keyX=keyX; saves[currentSlot].keyZ=keyZ;
     writeSaves();
