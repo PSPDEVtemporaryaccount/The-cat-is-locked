@@ -2,12 +2,8 @@
 """Prepare the user's menu PNG artwork as PSP GU RGBA8888 textures."""
 import os
 import subprocess
-from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PICTURES = os.path.join(ROOT, "assets", "Pictures")
-MAIN = os.path.join(PICTURES, "Main menu")
-MENUS = os.path.join(PICTURES, "Game Menus")
 OUT = os.path.join(ROOT, "build")
 os.makedirs(OUT, exist_ok=True)
 
