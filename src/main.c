@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 6);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 8, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
@@ -224,27 +224,47 @@ static void begin3D(void) {
     sceGumMatrixMode(GU_MODEL); sceGumLoadIdentity();
 }
 
-static void drawCat(void) {
-    float x=catX, z=catZ;
-    /* A high-contrast, unmistakable feline silhouette: torso, head, ears, paws, tail, face. */
-    drawCube(x,0.43f,z,1.00f,0.52f,0.68f,0xffb9b1a7);
-    drawCube(x,0.82f,z-0.42f,0.66f,0.62f,0.54f,0xffd9d0c5);
-    drawCube(x-0.24f,1.17f,z-0.58f,0.20f,0.36f,0.18f,0xff74645a);
-    drawCube(x+0.24f,1.17f,z-0.58f,0.20f,0.36f,0.18f,0xff74645a);
-    drawCube(x-0.15f,0.86f,z-0.70f,0.11f,0.12f,0.05f,0xffcaff62);
-    drawCube(x+0.15f,0.86f,z-0.70f,0.11f,0.12f,0.05f,0xffcaff62);
-    drawCube(x-0.15f,0.86f,z-0.74f,0.035f,0.08f,0.025f,0xff171717);
-    drawCube(x+0.15f,0.86f,z-0.74f,0.035f,0.08f,0.025f,0xff171717);
-    drawCube(x,0.69f,z-0.75f,0.10f,0.07f,0.04f,0xffff8fa3);
-    drawCube(x-0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
-    drawCube(x+0.34f,0.68f,z-0.72f,0.30f,0.025f,0.025f,0xfff8f5f0);
-    drawCube(x-0.30f,0.20f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x+0.30f,0.20f,z+0.18f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x-0.30f,0.20f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x+0.30f,0.20f,z-0.30f,0.18f,0.34f,0.20f,0xff74645a);
-    drawCube(x,0.46f,z+0.62f,0.14f,0.14f,0.76f,0xffd9d0c5);
+static void drawEllipsoid(float x,float y,float z,float sx,float sy,float sz,unsigned int color) {
+    static Vertex3D mesh[12*8*6] __attribute__((aligned(16)));
+    int lat,lon,n=0;
+    const float pi=3.14159265358979323846f;
+    for(lat=0;lat<8;lat++) {
+        float a0=-pi*0.5f+pi*(float)lat/8.0f, a1=-pi*0.5f+pi*(float)(lat+1)/8.0f;
+        for(lon=0;lon<12;lon++) {
+            float b0=2.0f*pi*(float)lon/12.0f, b1=2.0f*pi*(float)(lon+1)/12.0f;
+            float p[4][3];
+            p[0][0]=cosf(a0)*cosf(b0); p[0][1]=sinf(a0); p[0][2]=cosf(a0)*sinf(b0);
+            p[1][0]=cosf(a1)*cosf(b0); p[1][1]=sinf(a1); p[1][2]=cosf(a1)*sinf(b0);
+            p[2][0]=cosf(a1)*cosf(b1); p[2][1]=sinf(a1); p[2][2]=cosf(a1)*sinf(b1);
+            p[3][0]=cosf(a0)*cosf(b1); p[3][1]=sinf(a0); p[3][2]=cosf(a0)*sinf(b1);
+            { int order[6]={0,1,2,0,2,3},k; for(k=0;k<6;k++) { int q=order[k];
+              mesh[n].color=color; mesh[n].x=p[q][0]; mesh[n].y=p[q][1]; mesh[n].z=p[q][2]; n++; } }
+        }
+    }
+    sceKernelDcacheWritebackRange(mesh,sizeof(mesh));
+    { ScePspFVector3 pos={x,y,z},scale={sx,sy,sz}; sceGumPushMatrix(); sceGumTranslate(&pos); sceGumScale(&scale);
+      sceGuDrawArray(GU_TRIANGLES,GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_3D,n,0,mesh); sceGumPopMatrix(); }
 }
-
+static void drawCat(void) {
+    float x=catX,z=catZ;
+    drawEllipsoid(x,0.48f,z,0.62f,0.38f,0.86f,0xffb8b0a6);
+    drawEllipsoid(x,0.78f,z-0.58f,0.48f,0.48f,0.46f,0xffd9d0c5);
+    drawEllipsoid(x-0.25f,1.13f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
+    drawEllipsoid(x+0.25f,1.13f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
+    drawEllipsoid(x-0.16f,0.83f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
+    drawEllipsoid(x+0.16f,0.83f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
+    drawEllipsoid(x-0.16f,0.83f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
+    drawEllipsoid(x+0.16f,0.83f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
+    drawEllipsoid(x,0.67f,z-1.02f,0.07f,0.05f,0.035f,0xffff8fa3);
+    drawEllipsoid(x-0.29f,0.65f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
+    drawEllipsoid(x+0.29f,0.65f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
+    drawEllipsoid(x-0.30f,0.20f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.30f,0.20f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x-0.30f,0.20f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.30f,0.20f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.02f,0.48f,z+0.86f,0.14f,0.14f,0.40f,0xffd9d0c5);
+    drawEllipsoid(x+0.12f,0.60f,z+1.16f,0.13f,0.13f,0.30f,0xffd9d0c5);
+}
 static void drawKey(void) {
     if(hasKey) return;
     drawCube(keyX,0.28f,keyZ,0.62f,0.10f,0.12f,0xffffd34e);
@@ -597,41 +617,52 @@ static void openPseudoKeyboard(void) {
 }
 
 static void drawMenu(void) {
-    begin2D();
+    unsigned int bg=0xff171e2a, panel=0xff263449, accent=0xff39b8a5, white=0xfff4f7fb;
+    begin2D(); drawRect2D(0,0,480,272,bg); drawRect2D(0,0,480,8,accent);
+    drawRect2D(0,250,480,272,0xff10151e); drawRect2D(24,24,456,244,panel); drawRect2D(24,24,30,244,accent);
     if(screen==0) {
-        const unsigned char *t=selected==0?tex_main_play:(selected==1?tex_main_settings:tex_main_quit);
-        drawTexture(t);
-    } else if(screen==1) {
-        drawTexture(tex_play_menu);
-        /* Selection frame follows the two buttons in Menu_JOUER_V2.png. */
-        {
-            float top=(selected==0?66.0f:166.0f);
-            float bottom=top+54.0f;
-            drawRect2D(218.0f,top,470.0f,top+3.0f,0xffffffff);
-            drawRect2D(218.0f,bottom-3.0f,470.0f,bottom,0xffffffff);
-            drawRect2D(218.0f,top,221.0f,bottom,0xffffffff);
-            drawRect2D(467.0f,top,470.0f,bottom,0xffffffff);
-        }
+        drawRect2D(55,72,425,115,selected==0?0xff36566b:0xff2b394b);
+        drawRect2D(55,124,425,167,selected==1?0xff36566b:0xff2b394b);
+        drawRect2D(55,176,425,219,selected==2?0xff36566b:0xff2b394b);
+    } else if(screen==1 || screen==6) {
+        drawRect2D(55,75,425,126,selected==0?0xff36566b:0xff2b394b);
+        drawRect2D(55,139,425,190,selected==1?0xff36566b:0xff2b394b);
     } else if(screen==2) {
-        /* Use the supplied settings artwork as the actual screen background. */
-        drawTexture(tex_settings);
+        int i; for(i=0;i<4;i++) drawRect2D(55,65+i*43,425,101+i*43,selected==i?0xff36566b:0xff2b394b);
+        drawRect2D(270,123,410,135,0xff10151e); drawRect2D(270,123,270+1.40f*(float)volume,135,accent);
+        drawRect2D(205,166,410,178,0xff10151e); drawRect2D(205,166,205+2.05f*(float)ambientVolume,178,0xffff9855);
+        drawRect2D(soundOn?398:353,70,soundOn?414:369,96,white);
     } else if(screen==3) {
-        /* Save slots use their dedicated "Reprendre" artwork. */
-        drawTexture(tex_play_resume);
-    } else if(screen==9) {
-        /* The pseudo screen uses the dedicated adventure-start artwork. */
-        drawTexture(tex_start_adventure);
-    } else if(screen==6) {
-        /* Difficulty choices sit on the two-option play-menu artwork. */
-        drawTexture(tex_play_menu);
-    } else {
-        drawTexture(tex_main_default);
+        int i; for(i=0;i<SAVE_COUNT;i++) drawRect2D(55,52+i*36,425,82+i*36,selected==i?0xff36566b:0xff2b394b);
+    } else if(screen==9) { drawRect2D(55,90,425,150,0xff2b394b); drawRect2D(55,165,425,205,0xff2b394b); }
+    else if(screen==5 || screen==7 || screen==8) {
+        drawRect2D(55,100,425,151,selected==0?0xff36566b:0xff2b394b);
+        drawRect2D(55,160,425,211,selected==1?0xff36566b:0xff2b394b);
     }
 }
-
 static void printOverlay(void) {
     int i;
     pspDebugScreenSetTextColor(0xffffffff);
+    if(screen==0) {
+        pspDebugScreenSetXY(8,4); pspDebugScreenPrintf("THE CAT IS LOCKED");
+        pspDebugScreenSetXY(11,10); pspDebugScreenPrintf("%s JOUER",selected==0?">":" ");
+        pspDebugScreenSetXY(11,14); pspDebugScreenPrintf("%s PARAMETRES",selected==1?">":" ");
+        pspDebugScreenSetXY(11,18); pspDebugScreenPrintf("%s QUITTER",selected==2?">":" ");
+        pspDebugScreenSetXY(8,30); pspDebugScreenPrintf("CROIX : VALIDER   HAUT/BAS : NAVIGUER");
+    } else if(screen==1) {
+        pspDebugScreenSetXY(8,5); pspDebugScreenPrintf("JOUER");
+        pspDebugScreenSetXY(11,11); pspDebugScreenPrintf("%s REPRENDRE",selected==0?">":" ");
+        pspDebugScreenSetXY(11,17); pspDebugScreenPrintf("%s NOUVELLE AVENTURE",selected==1?">":" ");
+        pspDebugScreenSetXY(8,30); pspDebugScreenPrintf("CROIX : VALIDER   ROND : RETOUR");
+    } else if(screen==2) {
+        pspDebugScreenSetXY(8,4); pspDebugScreenPrintf("PARAMETRES");
+        pspDebugScreenSetXY(8,8); pspDebugScreenPrintf("%s SON : %s",selected==0?">":" ",soundOn?"ACTIVE":"COUPE");
+        pspDebugScreenSetXY(8,13); pspDebugScreenPrintf("%s MUSIQUE : %d%%",selected==1?">":" ",volume);
+        pspDebugScreenSetXY(8,18); pspDebugScreenPrintf("%s AMBIANCE : %d%%",selected==2?">":" ",ambientVolume);
+        pspDebugScreenSetXY(8,23); pspDebugScreenPrintf("%s REMISE A ZERO",selected==3?">":" ");
+        pspDebugScreenSetXY(8,30); pspDebugScreenPrintf("GAUCHE/DROITE : REGLER  CROIX : MODIFIER  ROND : RETOUR");
+    } else if(screen==3) {
+        pspDebugScreenSetXY(8,4); pspDebugScreenPrintf("SAUVEGARDES");
     if(screen==4) {
         pspDebugScreenSetXY(1,1);
         pspDebugScreenPrintf("MONDE %d/%d  -  NIVEAU %02d/%02d",world,WORLD_COUNT,level,LEVELS_PER_WORLD);
@@ -716,7 +747,7 @@ static void drawFrame(void) {
     {
         void *fb=sceGuSwapBuffers();
         pspDebugScreenSetOffset((int)fb);
-        if(screen!=0 || noticeFrames>0) printOverlay();
+        printOverlay();
     }
 }
 
