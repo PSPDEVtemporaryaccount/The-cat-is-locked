@@ -68,7 +68,7 @@ static Vertex3D cube[36] __attribute__((aligned(16))) = {
 
 static int screen=0; /* accueil, jouer, paramètres, sauvegardes, jeu, pause, difficulté, défaite, victoire */
 static int selected=0, difficulty=1, lives=3, world=1, level=1, hasKey=0, currentSlot=-1;
-static int soundOn=1, volume=70, noticeFrames=0, health=100;
+static int soundOn=1, volume=70, ambientVolume=100, noticeFrames=0, health=100;
 static char playerPseudo[24]="Chat";
 static float catX=0.0f, catZ=2.65f, keyX=0.0f, keyZ=-1.25f;
 static SaveSlot saves[SAVE_COUNT];
@@ -379,24 +379,30 @@ static void writeSaves(void) {
 }
 
 static void writeSettings(void) {
-    struct { unsigned int magic; int soundOn, volume; } cfg;
+    struct { unsigned int magic; int soundOn, volume, ambientVolume; } cfg;
     SceUID fd;
     makeSaveDir();
-    cfg.magic=SETTINGS_MAGIC; cfg.soundOn=soundOn; cfg.volume=volume;
+    cfg.magic=SETTINGS_MAGIC; cfg.soundOn=soundOn; cfg.volume=volume; cfg.ambientVolume=ambientVolume;
     fd=sceIoOpen(SETTINGS_PATH,PSP_O_WRONLY|PSP_O_CREAT|PSP_O_TRUNC,0777);
     if(fd>=0) { sceIoWrite(fd,&cfg,sizeof(cfg)); sceIoClose(fd); }
 }
 
 static void loadSettings(void) {
-    struct { unsigned int magic; int soundOn, volume; } cfg;
+    struct { unsigned int magic; int soundOn, volume, ambientVolume; } cfg;
     SceUID fd=sceIoOpen(SETTINGS_PATH,PSP_O_RDONLY,0777);
+    int bytes;
     if(fd<0) return;
     memset(&cfg,0,sizeof(cfg));
-    if(sceIoRead(fd,&cfg,sizeof(cfg))==(int)sizeof(cfg) && cfg.magic==SETTINGS_MAGIC) {
+    cfg.ambientVolume=100;
+    bytes=sceIoRead(fd,&cfg,sizeof(cfg));
+    if(bytes>=(int)(sizeof(unsigned int)+2*sizeof(int)) && cfg.magic==SETTINGS_MAGIC) {
         soundOn=cfg.soundOn?1:0;
         volume=cfg.volume;
         if(volume<0) volume=0;
         if(volume>100) volume=100;
+        if(bytes>=(int)sizeof(cfg)) ambientVolume=cfg.ambientVolume;
+        if(ambientVolume<0) ambientVolume=0;
+        if(ambientVolume>100) ambientVolume=100;
     }
     sceIoClose(fd);
 }
@@ -609,11 +615,15 @@ static void drawMenu(void) {
     } else if(screen==2) {
         /* Use the supplied settings artwork as the actual screen background. */
         drawTexture(tex_settings);
-    } else if(screen==3 || screen==9) {
-        /* Keep the matching two-panel game-menu artwork behind live content. */
-        drawTexture(tex_play_menu);
-    } else if(screen==6) {
+    } else if(screen==3) {
+        /* Save slots use their dedicated "Reprendre" artwork. */
+        drawTexture(tex_play_resume);
+    } else if(screen==9) {
+        /* The pseudo screen uses the dedicated adventure-start artwork. */
         drawTexture(tex_start_adventure);
+    } else if(screen==6) {
+        /* Difficulty choices sit on the two-option play-menu artwork. */
+        drawTexture(tex_play_menu);
     } else {
         drawTexture(tex_main_default);
     }
@@ -635,7 +645,7 @@ static void printOverlay(void) {
     } else if(screen==1) {
         pspDebugScreenSetXY(3,30); pspDebugScreenPrintf("HAUT/BAS : CHOISIR   CROIX : VALIDER   ROND : RETOUR");
     } else if(screen==2) {
-        pspDebugScreenSetXY(3,31); pspDebugScreenPrintf("CROIX : MODIFIER   GAUCHE/DROITE : VOLUME   ROND : RETOUR");
+        pspDebugScreenSetXY(1,31); pspDebugScreenPrintf("HAUT/BAS : CHOISIR  CROIX : MODIFIER/RAZ  GAUCHE/DROITE : REGLER  ROND : RETOUR");
     } else if(screen==3) {
         for(i=0;i<SAVE_COUNT;i++) {
             pspDebugScreenSetXY(4,7+i*4);
@@ -684,7 +694,7 @@ static void drawSettingsWidgets(void) {
     drawRect2D(279.0f,121.0f,279.0f+fill,137.0f,0xff35b8f4);
     /* The ambience control mirrors the master volume until separate audio
        buses are implemented; do not imply that audio playback exists yet. */
-    drawRect2D(213.0f,177.0f,213.0f+2.30f*(float)volume,192.0f,0xffff542d);
+    drawRect2D(213.0f,177.0f,213.0f+2.30f*(float)ambientVolume,192.0f,0xffff542d);
 }
 
 static void drawFrame(void) {
@@ -755,11 +765,18 @@ int main(void) {
             }
             if(press & PSP_CTRL_CIRCLE) { screen=0; selected=0; }
         } else if(screen==2) {
-            if(press & PSP_CTRL_UP) selected=0;
-            if(press & PSP_CTRL_DOWN) selected=1;
+            if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=3; }
+            if(press & PSP_CTRL_DOWN) { selected++; if(selected>3) selected=0; }
             if(selected==0 && (press & PSP_CTRL_CROSS)) { soundOn=!soundOn; writeSettings(); }
             if(selected==1 && (press & PSP_CTRL_LEFT)) { volume-=5; if(volume<0) volume=0; writeSettings(); }
             if(selected==1 && (press & PSP_CTRL_RIGHT)) { volume+=5; if(volume>100) volume=100; writeSettings(); }
+            if(selected==2 && (press & PSP_CTRL_LEFT)) { ambientVolume-=5; if(ambientVolume<0) ambientVolume=0; writeSettings(); }
+            if(selected==2 && (press & PSP_CTRL_RIGHT)) { ambientVolume+=5; if(ambientVolume>100) ambientVolume=100; writeSettings(); }
+            if(selected==3 && (press & PSP_CTRL_CROSS)) {
+                soundOn=1; volume=70; ambientVolume=100; writeSettings();
+                strncpy(notice,"Parametres reinitialises.",sizeof(notice)-1);
+                noticeFrames=120;
+            }
             if(press & PSP_CTRL_CIRCLE) { screen=0; selected=1; }
         } else if(screen==3) {
             if(press & PSP_CTRL_UP) { selected--; if(selected<0) selected=SAVE_COUNT-1; }
