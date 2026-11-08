@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 4);
+PSP_MODULE_INFO("The Cat Is Locked", 0, 7, 5);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
 PSP_HEAP_SIZE_KB(2048);
 
@@ -75,7 +75,7 @@ static SaveSlot saves[SAVE_COUNT];
 static char notice[64];
 
 /* PSP background music: decoded mono PCM, streamed through the audio channel. */
-#define MENU_AUDIO_RATE 22050
+#define MENU_AUDIO_RATE 44100
 #define MENU_AUDIO_CHUNK 2048
 static volatile int menuAudioDesiredGain=0;
 static int menuAudioThreadId=-1;
