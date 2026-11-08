@@ -38,14 +38,6 @@ typedef struct { unsigned int magic, version; SaveSlotV2 slots[SAVE_COUNT]; } Sa
 typedef struct { int valid, world, level, lives, difficulty; } SaveSlotV1;
 typedef struct { unsigned int magic, version; SaveSlotV1 slots[SAVE_COUNT]; } SaveFileV1;
 
-extern unsigned char tex_main_default[];
-extern unsigned char tex_main_play[];
-extern unsigned char tex_main_settings[];
-extern unsigned char tex_main_quit[];
-extern unsigned char tex_play_menu[];
-extern unsigned char tex_play_resume[];
-extern unsigned char tex_start_adventure[];
-extern unsigned char tex_settings[];
 extern unsigned char tex_saves[];
 extern short menu_audio_pcm[];
 extern short menu_audio_pcm_end[];
