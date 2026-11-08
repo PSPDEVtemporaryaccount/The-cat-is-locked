@@ -41,7 +41,7 @@ if not os.path.isfile(AUDIO_SOURCE):
     raise FileNotFoundError("Missing menu music: " + AUDIO_SOURCE)
 subprocess.run([
     "ffmpeg", "-y", "-v", "error", "-i", AUDIO_SOURCE,
-    "-vn", "-ac", "1", "-ar", "22050", "-f", "s16le",
+    "-vn", "-ac", "1", "-ar", "44100", "-f", "s16le",
     "-acodec", "pcm_s16le", AUDIO_OUTPUT
 ], check=True)
 if os.path.getsize(AUDIO_OUTPUT) < 4096:
