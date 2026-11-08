@@ -222,23 +222,24 @@ static void drawEllipsoid(float x,float y,float z,float sx,float sy,float sz,uns
 }
 static void drawCat(void) {
     float x=catX,z=catZ;
-    drawEllipsoid(x,0.48f,z,0.62f,0.38f,0.86f,0xffb8b0a6);
-    drawEllipsoid(x,0.78f,z-0.58f,0.48f,0.48f,0.46f,0xffd9d0c5);
-    drawEllipsoid(x-0.25f,1.13f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
-    drawEllipsoid(x+0.25f,1.13f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
-    drawEllipsoid(x-0.16f,0.83f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
-    drawEllipsoid(x+0.16f,0.83f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
-    drawEllipsoid(x-0.16f,0.83f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
-    drawEllipsoid(x+0.16f,0.83f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
-    drawEllipsoid(x,0.67f,z-1.02f,0.07f,0.05f,0.035f,0xffff8fa3);
-    drawEllipsoid(x-0.29f,0.65f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
-    drawEllipsoid(x+0.29f,0.65f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
-    drawEllipsoid(x-0.30f,0.20f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
-    drawEllipsoid(x+0.30f,0.20f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
-    drawEllipsoid(x-0.30f,0.20f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
-    drawEllipsoid(x+0.30f,0.20f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
-    drawEllipsoid(x+0.02f,0.48f,z+0.86f,0.14f,0.14f,0.40f,0xffd9d0c5);
-    drawEllipsoid(x+0.12f,0.60f,z+1.16f,0.13f,0.13f,0.30f,0xffd9d0c5);
+    /* Lift the full feline mesh 0.12 units: its feet clear the floor top at Y=0. */
+    drawEllipsoid(x,0.60f,z,0.62f,0.38f,0.86f,0xffb8b0a6);
+    drawEllipsoid(x,0.90f,z-0.58f,0.48f,0.48f,0.46f,0xffd9d0c5);
+    drawEllipsoid(x-0.25f,1.25f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
+    drawEllipsoid(x+0.25f,1.25f,z-0.78f,0.16f,0.30f,0.13f,0xff74645a);
+    drawEllipsoid(x-0.16f,0.95f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
+    drawEllipsoid(x+0.16f,0.95f,z-0.98f,0.09f,0.075f,0.045f,0xffcaff62);
+    drawEllipsoid(x-0.16f,0.95f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
+    drawEllipsoid(x+0.16f,0.95f,z-1.02f,0.025f,0.06f,0.025f,0xff171717);
+    drawEllipsoid(x,0.79f,z-1.02f,0.07f,0.05f,0.035f,0xffff8fa3);
+    drawEllipsoid(x-0.29f,0.77f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
+    drawEllipsoid(x+0.29f,0.77f,z-0.99f,0.22f,0.025f,0.025f,0xfff8f5f0);
+    drawEllipsoid(x-0.30f,0.32f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.30f,0.32f,z+0.30f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x-0.30f,0.32f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.30f,0.32f,z-0.34f,0.13f,0.29f,0.15f,0xff74645a);
+    drawEllipsoid(x+0.02f,0.60f,z+0.86f,0.14f,0.14f,0.40f,0xffd9d0c5);
+    drawEllipsoid(x+0.12f,0.72f,z+1.16f,0.13f,0.13f,0.30f,0xffd9d0c5);
 }
 static void drawKey(void) {
     if(hasKey) return;
@@ -592,29 +593,64 @@ static void openPseudoKeyboard(void) {
 }
 
 static void drawMenu(void) {
-    unsigned int bg=0xff171e2a, panel=0xff263449, accent=0xff39b8a5, white=0xfff4f7fb;
-    begin2D(); drawRect2D(0,0,480,272,bg); drawRect2D(0,0,480,8,accent);
-    drawRect2D(0,250,480,272,0xff10151e); drawRect2D(24,24,456,244,panel); drawRect2D(24,24,30,244,accent);
+    const unsigned int bg=0xff111925, panel=0xff202d40, accent=0xff42d7c2;
+    const unsigned int card=0xff2b3b50, selectedCard=0xff365e70;
+    int i;
+    begin2D();
+    drawRect2D(0,0,480,272,bg);
+    drawRect2D(0,0,480,7,accent);
+    drawRect2D(0,248,480,272,0xff0b111a);
+    drawRect2D(18,18,462,242,panel);
+    drawRect2D(18,18,23,242,accent);
+    drawRect2D(35,35,445,64,0xff172232);
+    /* Native geometric cat emblem, no image overlay. */
+    drawRect2D(397,40,427,59,0xffd9d0c5);
+    drawRect2D(397,35,405,45,0xffd9d0c5);
+    drawRect2D(419,35,427,45,0xffd9d0c5);
+    drawRect2D(402,46,406,50,accent);
+    drawRect2D(418,46,422,50,accent);
     if(screen==0) {
-        drawRect2D(55,72,425,115,selected==0?0xff36566b:0xff2b394b);
-        drawRect2D(55,124,425,167,selected==1?0xff36566b:0xff2b394b);
-        drawRect2D(55,176,425,219,selected==2?0xff36566b:0xff2b394b);
-    } else if(screen==1 || screen==6) {
-        drawRect2D(55,75,425,126,selected==0?0xff36566b:0xff2b394b);
-        drawRect2D(55,139,425,190,selected==1?0xff36566b:0xff2b394b);
+        for(i=0;i<3;i++) { float y=78.0f+(float)i*49.0f;
+            drawRect2D(54,y,426,y+39,selected==i?selectedCard:card);
+            if(selected==i) drawRect2D(54,y,60,y+39,accent);
+        }
+    } else if(screen==1) {
+        for(i=0;i<2;i++) { float y=91.0f+(float)i*66.0f;
+            drawRect2D(54,y,426,y+48,selected==i?selectedCard:card);
+            if(selected==i) drawRect2D(54,y,60,y+48,accent);
+        }
     } else if(screen==2) {
-        int i; for(i=0;i<4;i++) drawRect2D(55,65+i*43,425,101+i*43,selected==i?0xff36566b:0xff2b394b);
-        drawRect2D(270,123,410,135,0xff10151e); drawRect2D(270,123,270+1.40f*(float)volume,135,accent);
-        drawRect2D(205,166,410,178,0xff10151e); drawRect2D(205,166,205+2.05f*(float)ambientVolume,178,0xffff9855);
-        drawRect2D(soundOn?398:353,70,soundOn?414:369,96,white);
+        for(i=0;i<4;i++) { float y=70.0f+(float)i*41.0f;
+            drawRect2D(54,y,426,y+32,selected==i?selectedCard:card);
+            if(selected==i) drawRect2D(54,y,60,y+32,accent);
+        }
+        drawRect2D(270,123,410,135,0xff10151e);
+        drawRect2D(270,123,270+1.40f*(float)volume,135,accent);
+        drawRect2D(205,166,410,178,0xff10151e);
+        drawRect2D(205,166,205+2.05f*(float)ambientVolume,178,0xffff9855);
+        drawRect2D(soundOn?398:353,70,soundOn?414:369,96,0xfff4f7fb);
     } else if(screen==3) {
-        int i; for(i=0;i<SAVE_COUNT;i++) drawRect2D(55,52+i*36,425,82+i*36,selected==i?0xff36566b:0xff2b394b);
-    } else if(screen==9) { drawRect2D(55,90,425,150,0xff2b394b); drawRect2D(55,165,425,205,0xff2b394b); }
-    else if(screen==5 || screen==7 || screen==8) {
-        drawRect2D(55,100,425,151,selected==0?0xff36566b:0xff2b394b);
-        drawRect2D(55,160,425,211,selected==1?0xff36566b:0xff2b394b);
+        for(i=0;i<SAVE_COUNT;i++) { float y=52.0f+(float)i*36.0f;
+            drawRect2D(54,y,426,y+30,selected==i?selectedCard:card);
+            if(selected==i) drawRect2D(54,y,60,y+30,accent);
+        }
+    } else if(screen==6) {
+        for(i=0;i<6;i++) { float y=67.0f+(float)i*28.0f;
+            drawRect2D(54,y,426,y+23,selected==i?selectedCard:card);
+            if(selected==i) drawRect2D(54,y,60,y+23,accent);
+        }
+    } else if(screen==9) {
+        drawRect2D(54,94,426,147,card);
+        drawRect2D(54,163,426,204,selected==0?selectedCard:card);
+        drawRect2D(54,163,60,204,accent);
+    } else if(screen==5 || screen==7 || screen==8) {
+        drawRect2D(54,102,426,151,selected==0?selectedCard:card);
+        drawRect2D(54,162,426,211,selected==1?selectedCard:card);
+        if(selected==0) drawRect2D(54,102,60,151,accent);
+        if(selected==1) drawRect2D(54,162,60,211,accent);
     }
 }
+
 static void printOverlay(void) {
     int i;
     pspDebugScreenSetTextColor(0xffffffff);
